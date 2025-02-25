@@ -79,28 +79,128 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          content_tokens: number
           created_at: string
           id: string
+          transfer_code: string
           updated_at: string
           username: string
+          view_tokens: number
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          content_tokens?: number
           created_at?: string
           id: string
+          transfer_code?: string
           updated_at?: string
           username: string
+          view_tokens?: number
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          content_tokens?: number
           created_at?: string
           id?: string
+          transfer_code?: string
           updated_at?: string
           username?: string
+          view_tokens?: number
         }
         Relationships: []
+      }
+      token_transactions: {
+        Row: {
+          content_tokens: number
+          created_at: string
+          id: string
+          recipient_id: string
+          sender_id: string
+          type: string
+          video_id: string | null
+          view_tokens: number
+        }
+        Insert: {
+          content_tokens?: number
+          created_at?: string
+          id?: string
+          recipient_id: string
+          sender_id: string
+          type: string
+          video_id?: string | null
+          view_tokens?: number
+        }
+        Update: {
+          content_tokens?: number
+          created_at?: string
+          id?: string
+          recipient_id?: string
+          sender_id?: string
+          type?: string
+          video_id?: string | null
+          view_tokens?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_transactions_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "token_transactions_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "token_transactions_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_views: {
+        Row: {
+          created_at: string
+          id: string
+          video_id: string
+          viewer_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          video_id: string
+          viewer_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          video_id?: string
+          viewer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_views_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_views_viewer_id_fkey"
+            columns: ["viewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       videos: {
         Row: {
@@ -148,7 +248,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      handle_video_view: {
+        Args: {
+          video_id: string
+          viewer_id: string
+        }
+        Returns: undefined
+      }
+      reward_upload_tokens: {
+        Args: {
+          user_id: string
+          is_video: boolean
+        }
+        Returns: undefined
+      }
+      transfer_tokens: {
+        Args: {
+          recipient_transfer_code: string
+          content_tokens_amount: number
+          view_tokens_amount: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

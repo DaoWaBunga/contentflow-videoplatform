@@ -38,34 +38,46 @@ const Upload = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from('videos')
-      .insert({
-        title,
-        url: videoUrl,
-        thumbnail_url: thumbnailUrl || null,
+    try {
+      // First insert the video
+      const { data: videoData, error: videoError } = await supabase
+        .from('videos')
+        .insert({
+          title,
+          url: videoUrl,
+          thumbnail_url: thumbnailUrl || null,
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (videoError) throw videoError;
+
+      // Then reward tokens for the upload
+      const { error: rewardError } = await supabase.rpc('reward_upload_tokens', {
         user_id: user.id,
+        is_video: true
       });
 
-    if (error) {
+      if (rewardError) throw rewardError;
+
+      toast({
+        title: "Success",
+        description: "Your video has been uploaded and you've earned tokens!",
+      });
+
+      // Reset form and redirect to profile
+      setVideoUrl("");
+      setThumbnailUrl("");
+      setTitle("");
+      navigate("/profile");
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to upload video",
+        description: error.message,
       });
-      return;
     }
-
-    toast({
-      title: "Success",
-      description: "Your video has been uploaded",
-    });
-
-    // Reset form and redirect to profile
-    setVideoUrl("");
-    setThumbnailUrl("");
-    setTitle("");
-    navigate("/profile");
   };
 
   return (

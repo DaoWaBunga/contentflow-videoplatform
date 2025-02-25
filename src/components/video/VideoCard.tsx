@@ -1,7 +1,11 @@
 
+import { useState } from "react";
 import { Play, Heart, MessageCircle, Share2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 interface VideoCardProps {
+  id?: string;  // Make id optional for now since some uses might not provide it
   title: string;
   author: string;
   thumbnail: string;
@@ -9,7 +13,41 @@ interface VideoCardProps {
   comments: number;
 }
 
-export function VideoCard({ title, author, thumbnail, likes, comments }: VideoCardProps) {
+export function VideoCard({ id, title, author, thumbnail, likes, comments }: VideoCardProps) {
+  const [isViewed, setIsViewed] = useState(false);
+  const { toast } = useToast();
+
+  const handleView = async () => {
+    if (!id || isViewed) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "You must be logged in to view videos",
+        });
+        return;
+      }
+
+      const { error } = await supabase.rpc('handle_video_view', {
+        video_id: id,
+        viewer_id: user.id
+      });
+
+      if (error) throw error;
+
+      setIsViewed(true);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    }
+  };
+
   return (
     <div className="relative w-full aspect-[9/16] bg-muted rounded-lg overflow-hidden">
       <img
@@ -17,6 +55,7 @@ export function VideoCard({ title, author, thumbnail, likes, comments }: VideoCa
         alt={title}
         className="w-full h-full object-cover"
         loading="lazy"
+        onClick={handleView}
       />
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
         <h3 className="font-medium text-white">{title}</h3>
