@@ -6,31 +6,66 @@ import { Label } from "@/components/ui/label";
 import { Link, Upload as UploadIcon } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 const Upload = () => {
   const [videoUrl, setVideoUrl] = useState("");
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [title, setTitle] = useState("");
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!videoUrl || !title) {
       toast({
         variant: "destructive",
         title: "Missing information",
-        description: "Please fill in all fields",
+        description: "Please fill in all required fields",
       });
       return;
     }
-    
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to upload videos",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('videos')
+      .insert({
+        title,
+        url: videoUrl,
+        thumbnail_url: thumbnailUrl || null,
+        user_id: user.id,
+      });
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to upload video",
+      });
+      return;
+    }
+
     toast({
-      title: "Video submitted!",
-      description: "Your video is being processed.",
+      title: "Success",
+      description: "Your video has been uploaded",
     });
-    
-    // Reset form
+
+    // Reset form and redirect to profile
     setVideoUrl("");
+    setThumbnailUrl("");
     setTitle("");
+    navigate("/profile");
   };
 
   return (
@@ -65,6 +100,20 @@ const Upload = () => {
                   placeholder="Paste your video link here"
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="thumbnailUrl">Thumbnail URL (optional)</Label>
+              <div className="relative">
+                <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  id="thumbnailUrl"
+                  placeholder="Paste your thumbnail link here"
+                  value={thumbnailUrl}
+                  onChange={(e) => setThumbnailUrl(e.target.value)}
                   className="pl-10"
                 />
               </div>

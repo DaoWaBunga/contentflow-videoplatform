@@ -1,30 +1,61 @@
 
+import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { VideoCard } from "@/components/video/VideoCard";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
-const discoverVideos = [
-  {
-    id: 3,
-    title: "Urban Photography Tips",
-    author: "@cityscape",
-    thumbnail: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000",
-    likes: 3200,
-    comments: 128,
-  },
-  {
-    id: 4,
-    title: "Dance Tutorial 2024",
-    author: "@dancepro",
-    thumbnail: "https://images.unsplash.com/photo-1516567727245-ad8c68f3cdc9",
-    likes: 5400,
-    comments: 230,
-  },
-];
+interface Video {
+  id: string;
+  title: string;
+  url: string;
+  thumbnail_url: string | null;
+  likes_count: number;
+  comments_count: number;
+  profiles: {
+    username: string;
+  };
+}
 
 const Discover = () => {
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchVideos();
+  }, []);
+
+  const fetchVideos = async () => {
+    const { data, error } = await supabase
+      .from('videos')
+      .select(`
+        *,
+        profiles (
+          username
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load videos",
+      });
+      return;
+    }
+
+    setVideos(data || []);
+  };
+
+  const filteredVideos = videos.filter(video =>
+    video.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-card text-foreground pb-16">
       <Header />
@@ -34,11 +65,20 @@ const Discover = () => {
           <Input
             placeholder="Search videos..."
             className="pl-10 bg-muted border-none"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <div className="space-y-4">
-          {discoverVideos.map((video) => (
-            <VideoCard key={video.id} {...video} />
+          {filteredVideos.map((video) => (
+            <VideoCard
+              key={video.id}
+              title={video.title}
+              author={video.profiles.username}
+              thumbnail={video.thumbnail_url || video.url}
+              likes={video.likes_count}
+              comments={video.comments_count}
+            />
           ))}
         </div>
       </main>
