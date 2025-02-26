@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Play, Heart, MessageCircle, Share2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -15,7 +15,24 @@ interface VideoCardProps {
 
 export function VideoCard({ id, title, author, thumbnail, likes, comments }: VideoCardProps) {
   const [isViewed, setIsViewed] = useState(false);
+  const [mediaType, setMediaType] = useState<"image" | "video" | "youtube" | "iframe" | "unknown">("unknown");
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Determine media type based on thumbnail/URL
+    if (thumbnail.match(/\.(jpeg|jpg|gif|png)$/i) || thumbnail.includes('images.unsplash.com')) {
+      setMediaType("image");
+    } else if (thumbnail.match(/\.(mp4|mov|webm)$/i)) {
+      setMediaType("video");
+    } else if (thumbnail.includes('youtube.com') || thumbnail.includes('youtu.be')) {
+      setMediaType("youtube");
+    } else if (thumbnail.includes('imgur.com')) {
+      // Check if it's an Imgur image or album
+      setMediaType(thumbnail.match(/\.(jpeg|jpg|gif|png)$/i) ? "image" : "iframe");
+    } else {
+      setMediaType("unknown");
+    }
+  }, [thumbnail]);
 
   const handleView = async () => {
     if (!id || isViewed) return;
@@ -48,15 +65,87 @@ export function VideoCard({ id, title, author, thumbnail, likes, comments }: Vid
     }
   };
 
+  // Function to render the correct media based on type
+  const renderMedia = () => {
+    switch (mediaType) {
+      case "image":
+        return (
+          <img
+            src={thumbnail}
+            alt={title}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onClick={handleView}
+          />
+        );
+      case "video":
+        return (
+          <video
+            src={thumbnail}
+            className="w-full h-full object-cover"
+            controls
+            preload="metadata"
+            poster=""
+            onClick={handleView}
+          />
+        );
+      case "youtube":
+        // Extract YouTube video ID
+        const youtubeId = thumbnail.includes('youtube.com/watch?v=') 
+          ? new URL(thumbnail).searchParams.get('v')
+          : thumbnail.includes('youtu.be/')
+            ? thumbnail.split('youtu.be/')[1]?.split('?')[0]
+            : null;
+        
+        return youtubeId ? (
+          <iframe
+            src={`https://www.youtube.com/embed/${youtubeId}`}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            onClick={handleView}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-muted">
+            Invalid YouTube URL
+          </div>
+        );
+      case "iframe":
+        // Handle Imgur embeds
+        if (thumbnail.includes('imgur.com/a/')) {
+          const albumId = thumbnail.split('imgur.com/a/')[1]?.split('/')[0];
+          return albumId ? (
+            <iframe
+              src={`https://imgur.com/a/${albumId}/embed`}
+              className="w-full h-full"
+              allowFullScreen
+              onClick={handleView}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-muted">
+              Invalid Imgur URL
+            </div>
+          );
+        }
+        // Fall through to default
+      default:
+        return (
+          <div className="w-full h-full flex items-center justify-center bg-muted">
+            <img
+              src={thumbnail}
+              alt={title}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onClick={handleView}
+            />
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="relative w-full aspect-[9/16] bg-muted rounded-lg overflow-hidden">
-      <img
-        src={thumbnail}
-        alt={title}
-        className="w-full h-full object-cover"
-        loading="lazy"
-        onClick={handleView}
-      />
+      {renderMedia()}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
         <h3 className="font-medium text-white">{title}</h3>
         <p className="text-sm text-gray-300">{author}</p>

@@ -1,35 +1,93 @@
 
+import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { VideoCard } from "@/components/video/VideoCard";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
+import { FileQuestion } from "lucide-react";
 
-const mockVideos = [
-  {
-    id: "1", // Changed from number to string
-    title: "Amazing Sunset Timelapse",
-    author: "@naturelover",
-    thumbnail: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158",
-    likes: 1234,
-    comments: 56,
-  },
-  {
-    id: "2", // Changed from number to string
-    title: "Tech Review 2024",
-    author: "@techie",
-    thumbnail: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",
-    likes: 890,
-    comments: 34,
-  },
-];
+interface Video {
+  id: string;
+  title: string;
+  url: string;
+  thumbnail_url: string | null;
+  likes_count: number;
+  comments_count: number;
+  profiles: {
+    username: string;
+  };
+}
 
 const Index = () => {
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchVideos();
+  }, []);
+
+  const fetchVideos = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('videos')
+        .select(`
+          *,
+          profiles (
+            username
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      
+      setVideos(data || []);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load videos",
+      });
+      console.error("Error fetching videos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-card text-foreground pb-16">
       <Header />
       <main className="max-w-lg mx-auto pt-20 px-4 space-y-4">
-        {mockVideos.map((video) => (
-          <VideoCard key={video.id} {...video} />
-        ))}
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-pulse text-center">
+              <p className="text-muted-foreground">Loading content...</p>
+            </div>
+          </div>
+        ) : videos.length > 0 ? (
+          videos.map((video) => (
+            <VideoCard
+              key={video.id}
+              id={video.id}
+              title={video.title}
+              author={video.profiles.username}
+              thumbnail={video.thumbnail_url || video.url}
+              likes={video.likes_count || 0}
+              comments={video.comments_count || 0}
+            />
+          ))
+        ) : (
+          <div className="text-center py-20 space-y-4">
+            <FileQuestion className="h-16 w-16 mx-auto text-muted-foreground" />
+            <h3 className="text-xl font-medium">No content yet</h3>
+            <p className="text-muted-foreground max-w-xs mx-auto">
+              Be the first to upload videos and images to the platform!
+            </p>
+          </div>
+        )}
       </main>
       <BottomNav />
     </div>
