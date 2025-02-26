@@ -5,7 +5,7 @@ import { VideoCard } from "@/components/video/VideoCard";
 
 const mockVideos = [
   {
-    id: 1,
+    id: "1", // Changed from number to string
     title: "Amazing Sunset Timelapse",
     author: "@naturelover",
     thumbnail: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158",
@@ -13,7 +13,7 @@ const mockVideos = [
     comments: 56,
   },
   {
-    id: 2,
+    id: "2", // Changed from number to string
     title: "Tech Review 2024",
     author: "@techie",
     thumbnail: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d",

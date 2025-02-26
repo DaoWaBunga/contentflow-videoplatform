@@ -12,48 +12,52 @@ import Upload from "./pages/Upload";
 import Wallet from "./pages/Wallet";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import { useEffect, useState } from "react";
 
-const queryClient = new QueryClient();
+const App = () => {
+  // Create a client
+  const [queryClient] = useState(() => new QueryClient());
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/discover" element={<Discover />} />
-          <Route
-            path="/upload"
-            element={
-              <AuthGuard>
-                <Upload />
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/wallet"
-            element={
-              <AuthGuard>
-                <Wallet />
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <AuthGuard>
-                <Profile />
-              </AuthGuard>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/discover" element={<Discover />} />
+            <Route
+              path="/upload"
+              element={
+                <AuthGuard>
+                  <Upload />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/wallet"
+              element={
+                <AuthGuard>
+                  <Wallet />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <AuthGuard>
+                  <Profile />
+                </AuthGuard>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
