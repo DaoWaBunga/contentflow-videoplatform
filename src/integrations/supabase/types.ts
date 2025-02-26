@@ -204,6 +204,7 @@ export type Database = {
       }
       videos: {
         Row: {
+          category: string | null
           comments_count: number | null
           created_at: string
           id: string
@@ -214,6 +215,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string | null
           comments_count?: number | null
           created_at?: string
           id?: string
@@ -224,6 +226,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string | null
           comments_count?: number | null
           created_at?: string
           id?: string

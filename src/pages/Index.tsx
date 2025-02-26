@@ -12,9 +12,9 @@ interface Video {
   title: string;
   url: string;
   thumbnail_url: string | null;
-  likes_count: number;
-  comments_count: number;
-  category: string | null;
+  likes_count: number | null;
+  comments_count: number | null;
+  category?: string | null;
   profiles: {
     username: string;
   };
@@ -45,7 +45,7 @@ const Index = () => {
 
       if (error) throw error;
       
-      setVideos(data || []);
+      setVideos(data as Video[] || []);
     } catch (error: any) {
       toast({
         variant: "destructive",
