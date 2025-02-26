@@ -14,6 +14,7 @@ interface Video {
   thumbnail_url: string | null;
   likes_count: number;
   comments_count: number;
+  category: string | null;
   profiles: {
     username: string;
   };
@@ -35,7 +36,7 @@ const Index = () => {
         .from('videos')
         .select(`
           *,
-          profiles (
+          profiles!videos_user_id_fkey (
             username
           )
         `)
@@ -77,6 +78,7 @@ const Index = () => {
               thumbnail={video.thumbnail_url || video.url}
               likes={video.likes_count || 0}
               comments={video.comments_count || 0}
+              category={video.category || "Uncategorized"}
             />
           ))
         ) : (

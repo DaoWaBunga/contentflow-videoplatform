@@ -1,19 +1,29 @@
 
 import { useState, useEffect } from "react";
-import { Play, Heart, MessageCircle, Share2 } from "lucide-react";
+import { Play, Heart, MessageCircle, Share2, Tag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface VideoCardProps {
-  id?: string;  // Make id optional for now since some uses might not provide it
+  id?: string;
   title: string;
   author: string;
   thumbnail: string;
   likes: number;
   comments: number;
+  category?: string;
 }
 
-export function VideoCard({ id, title, author, thumbnail, likes, comments }: VideoCardProps) {
+export function VideoCard({ 
+  id, 
+  title, 
+  author, 
+  thumbnail, 
+  likes, 
+  comments, 
+  category = "Uncategorized" 
+}: VideoCardProps) {
   const [isViewed, setIsViewed] = useState(false);
   const [mediaType, setMediaType] = useState<"image" | "video" | "youtube" | "iframe" | "unknown">("unknown");
   const { toast } = useToast();
@@ -146,6 +156,15 @@ export function VideoCard({ id, title, author, thumbnail, likes, comments }: Vid
   return (
     <div className="relative w-full aspect-[9/16] bg-muted rounded-lg overflow-hidden">
       {renderMedia()}
+      
+      {/* Category badge */}
+      <div className="absolute top-4 left-4 z-10">
+        <Badge variant="secondary" className="px-2 py-1 bg-black/50 backdrop-blur-sm">
+          <Tag className="h-3 w-3 mr-1" />
+          {category}
+        </Badge>
+      </div>
+      
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
         <h3 className="font-medium text-white">{title}</h3>
         <p className="text-sm text-gray-300">{author}</p>

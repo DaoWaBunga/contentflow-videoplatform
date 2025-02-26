@@ -1,15 +1,24 @@
+
 import { useState, useRef } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Link, Upload as UploadIcon, ImageIcon, FileVideo, AlertCircle } from "lucide-react";
+import { Link, Upload as UploadIcon, ImageIcon, FileVideo, AlertCircle, Tag } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { CATEGORIES } from "./Discover";
 
 // File size limits in bytes
 const IMAGE_SIZE_LIMIT = 5 * 1024 * 1024; // 5MB
@@ -20,10 +29,12 @@ const Upload = () => {
   const [embedUrl, setEmbedUrl] = useState("");
   const [title, setTitle] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [category, setCategory] = useState("");
   
   // File upload states
   const [file, setFile] = useState<File | null>(null);
   const [fileTitle, setFileTitle] = useState("");
+  const [fileCategory, setFileCategory] = useState("");
   const [fileType, setFileType] = useState<"image" | "video" | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -105,18 +116,15 @@ const Upload = () => {
     }
 
     try {
-      // Determine if it's a YouTube, Imgur, or other URL
-      let url = embedUrl;
-      let thumbnail = thumbnailUrl;
-      
       // Insert into database
       const { data: mediaData, error: mediaError } = await supabase
         .from('videos')
         .insert({
           title,
-          url,
-          thumbnail_url: thumbnail || null,
+          url: embedUrl,
+          thumbnail_url: thumbnailUrl || null,
           user_id: user.id,
+          category: category || null
         })
         .select()
         .single();
@@ -140,6 +148,7 @@ const Upload = () => {
       setEmbedUrl("");
       setThumbnailUrl("");
       setTitle("");
+      setCategory("");
       navigate("/profile");
     } catch (error: any) {
       toast({
@@ -206,6 +215,7 @@ const Upload = () => {
           title: fileTitle,
           url: publicUrl,
           user_id: user.id,
+          category: fileCategory || null
         })
         .select()
         .single();
@@ -229,6 +239,7 @@ const Upload = () => {
       setFile(null);
       setFileTitle("");
       setFileType(null);
+      setFileCategory("");
       setUploadProgress(100);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -304,6 +315,20 @@ const Upload = () => {
                       className="pl-10"
                     />
                   </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <button
@@ -386,6 +411,20 @@ const Upload = () => {
                       <Progress value={uploadProgress} className="h-2" />
                     </div>
                   )}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="fileCategory">Category</Label>
+                  <Select value={fileCategory} onValueChange={setFileCategory}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <button
