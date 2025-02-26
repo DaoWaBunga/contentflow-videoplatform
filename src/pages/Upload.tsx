@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -188,11 +187,7 @@ const Upload = () => {
         .from(fileType === "image" ? "images" : "videos")
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false,
-          onUploadProgress: (progress) => {
-            const percent = (progress.loaded / progress.total) * 100;
-            setUploadProgress(percent);
-          }
+          upsert: false
         });
 
       if (uploadError) throw uploadError;
@@ -234,7 +229,7 @@ const Upload = () => {
       setFile(null);
       setFileTitle("");
       setFileType(null);
-      setUploadProgress(0);
+      setUploadProgress(100);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
