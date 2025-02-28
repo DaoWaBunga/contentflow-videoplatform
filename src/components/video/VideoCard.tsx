@@ -1,21 +1,14 @@
 
-import { useState, useEffect } from "react";
-import { Play, Heart, MessageCircle, Share2, Tag } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Heart, MessageCircle, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-  DialogTrigger 
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Link, useNavigate } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface VideoCardProps {
-  id?: string;
+  id: string;
   title: string;
   author: string;
   thumbnail: string;
@@ -24,181 +17,141 @@ interface VideoCardProps {
   category?: string;
 }
 
-export function VideoCard({ 
+export const VideoCard = ({ 
   id, 
   title, 
   author, 
   thumbnail, 
   likes, 
-  comments, 
-  category = "Uncategorized" 
-}: VideoCardProps) {
-  const [isViewed, setIsViewed] = useState(false);
-  const [mediaType, setMediaType] = useState<"image" | "video" | "youtube" | "iframe" | "unknown">("unknown");
-  const [liked, setLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(likes);
-  const [commentsCount, setCommentsCount] = useState(comments);
-  const [commentText, setCommentText] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
+  comments,
+  category = "Uncategorized"
+}: VideoCardProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(likes);
+  const [commentCount, setCommentCount] = useState(comments);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCommentInput, setShowCommentInput] = useState(false);
+  const [commentText, setCommentText] = useState("");
 
-  useEffect(() => {
-    checkAuthStatus();
-    determineMediaType();
-    if (id) {
-      checkIfLiked();
+  const isYoutubeVideo = 
+    thumbnail.includes("youtube.com") || 
+    thumbnail.includes("youtu.be");
+  
+  const isDirectImageUrl = 
+    thumbnail.endsWith(".jpg") || 
+    thumbnail.endsWith(".jpeg") || 
+    thumbnail.endsWith(".png") || 
+    thumbnail.endsWith(".gif") ||
+    thumbnail.includes("storage.googleapis.com");
+
+  // Extract video ID from YouTube URL
+  const getYoutubeEmbedUrl = (url: string) => {
+    let videoId = "";
+    
+    if (url.includes("youtube.com/watch")) {
+      videoId = new URL(url).searchParams.get("v") || "";
+    } else if (url.includes("youtu.be/")) {
+      videoId = url.split("youtu.be/")[1].split("?")[0];
     }
-  }, [id, thumbnail]);
-
-  const checkAuthStatus = async () => {
-    const { data } = await supabase.auth.getUser();
-    setIsAuthenticated(!!data.user);
+    
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
   };
 
-  const determineMediaType = () => {
-    // Determine media type based on thumbnail/URL
-    if (thumbnail.match(/\.(jpeg|jpg|gif|png)$/i) || thumbnail.includes('images.unsplash.com')) {
-      setMediaType("image");
-    } else if (thumbnail.match(/\.(mp4|mov|webm)$/i)) {
-      setMediaType("video");
-    } else if (thumbnail.includes('youtube.com') || thumbnail.includes('youtu.be')) {
-      setMediaType("youtube");
-    } else if (thumbnail.includes('imgur.com')) {
-      // Check if it's an Imgur image or album
-      setMediaType(thumbnail.match(/\.(jpeg|jpg|gif|png)$/i) ? "image" : "iframe");
-    } else {
-      setMediaType("unknown");
-    }
+  const handleThumbnailClick = () => {
+    navigate(`/video/${id}`);
   };
 
-  const checkIfLiked = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !id) return;
-
-    const { data, error } = await supabase
-      .from('likes')
-      .select('*')
-      .eq('video_id', id)
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error checking like status:", error);
-      return;
-    }
-
-    setLiked(!!data);
-  };
-
-  const handleView = async () => {
-    if (!id || isViewed) return;
-
+  const handleLikeClick = async () => {
+    if (isSubmitting) return;
+    
     try {
+      setIsSubmitting(true);
+      
+      // Check if user is logged in
       const { data: { user } } = await supabase.auth.getUser();
+      
       if (!user) {
         toast({
+          title: "Authentication required",
+          description: "Please log in to like videos",
           variant: "destructive",
-          title: "Error",
-          description: "You must be logged in to view videos",
         });
         return;
       }
-
-      const { error } = await supabase.rpc('handle_video_view', {
-        video_id: id,
-        viewer_id: user.id
-      });
-
+      
+      // Check if already liked
+      const { data: existingLike } = await supabase
+        .from('likes')
+        .select()
+        .eq('video_id', id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (existingLike) {
+        toast({
+          title: "Already liked",
+          description: "You've already liked this video",
+        });
+        setIsLiked(true);
+        return;
+      }
+      
+      // Add like
+      const { error } = await supabase
+        .from('likes')
+        .insert({
+          video_id: id,
+          user_id: user.id
+        });
+      
       if (error) throw error;
-
-      setIsViewed(true);
-    } catch (error: any) {
+      
+      // Update UI
+      setIsLiked(true);
+      setLikeCount(prev => prev + 1);
+      
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
+        title: "Liked!",
+        description: "You've successfully liked this video",
       });
+    } catch (error: any) {
+      console.error("Error liking video:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to like video",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleLike = async () => {
-    if (!id) return;
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          variant: "destructive",
-          title: "Authentication Required",
-          description: "Please sign in to like videos",
-        });
-        return;
-      }
-
-      if (liked) {
-        // Unlike the video
-        const { error } = await supabase
-          .from('likes')
-          .delete()
-          .eq('video_id', id)
-          .eq('user_id', user.id);
-
-        if (error) throw error;
-
-        setLiked(false);
-        setLikesCount(prev => Math.max(0, prev - 1));
-        toast({
-          title: "Unliked",
-          description: "You have unliked this video",
-        });
-      } else {
-        // Like the video
-        const { error } = await supabase
-          .from('likes')
-          .insert({
-            video_id: id,
-            user_id: user.id
-          });
-
-        if (error) {
-          // If there's a conflict (already liked), don't show an error
-          if (error.code !== '23505') { // PostgreSQL unique constraint violation
-            throw error;
-          }
-        } else {
-          setLiked(true);
-          setLikesCount(prev => prev + 1);
-          toast({
-            title: "Liked!",
-            description: "You liked this video",
-          });
-        }
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-    }
+  const handleCommentClick = () => {
+    setShowCommentInput(!showCommentInput);
   };
 
-  const handleComment = async () => {
-    if (!id || !commentText.trim()) return;
-
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting || !commentText.trim()) return;
+    
     try {
+      setIsSubmitting(true);
+      
+      // Check if user is logged in
       const { data: { user } } = await supabase.auth.getUser();
+      
       if (!user) {
         toast({
+          title: "Authentication required",
+          description: "Please log in to comment",
           variant: "destructive",
-          title: "Authentication Required",
-          description: "Please sign in to comment",
         });
         return;
       }
-
-      // Here's the fixed part - we need to fix the Supabase types by using the SQL API directly
+      
+      // Add comment
       const { error } = await supabase
         .from('comments')
         .insert({
@@ -206,176 +159,131 @@ export function VideoCard({
           user_id: user.id,
           content: commentText.trim()
         });
-
+      
       if (error) throw error;
-
+      
+      // Update UI
+      setCommentCount(prev => prev + 1);
       setCommentText("");
-      setCommentsCount(prev => prev + 1);
-      setIsCommentDialogOpen(false);
+      setShowCommentInput(false);
       
       toast({
-        title: "Comment Posted",
-        description: "Your comment has been added successfully",
+        title: "Comment added!",
+        description: "Your comment has been posted",
       });
     } catch (error: any) {
+      console.error("Error posting comment:", error);
       toast({
-        variant: "destructive",
         title: "Error",
-        description: error.message,
-      });
-    }
-  };
-
-  const openCommentDialog = () => {
-    if (!isAuthenticated) {
-      toast({
+        description: error.message || "Failed to post comment",
         variant: "destructive",
-        title: "Authentication Required",
-        description: "Please sign in to comment",
       });
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsCommentDialogOpen(true);
   };
 
-  // Function to render the correct media based on type
-  const renderMedia = () => {
-    switch (mediaType) {
-      case "image":
-        return (
-          <img
-            src={thumbnail}
-            alt={title}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            onClick={handleView}
-          />
-        );
-      case "video":
-        return (
-          <video
-            src={thumbnail}
-            className="w-full h-full object-cover"
-            controls
-            preload="metadata"
-            poster=""
-            onClick={handleView}
-          />
-        );
-      case "youtube":
-        // Extract YouTube video ID
-        const youtubeId = thumbnail.includes('youtube.com/watch?v=') 
-          ? new URL(thumbnail).searchParams.get('v')
-          : thumbnail.includes('youtu.be/')
-            ? thumbnail.split('youtu.be/')[1]?.split('?')[0]
-            : null;
-        
-        return youtubeId ? (
-          <iframe
-            src={`https://www.youtube.com/embed/${youtubeId}`}
+  const renderThumbnail = () => {
+    if (isYoutubeVideo) {
+      const embedUrl = getYoutubeEmbedUrl(thumbnail);
+      return (
+        <div className="aspect-video w-full rounded-md overflow-hidden bg-muted">
+          <iframe 
+            src={embedUrl} 
             className="w-full h-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
-            onClick={handleView}
+            title={title}
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-muted">
-            Invalid YouTube URL
-          </div>
-        );
-      case "iframe":
-        // Handle Imgur embeds
-        if (thumbnail.includes('imgur.com/a/')) {
-          const albumId = thumbnail.split('imgur.com/a/')[1]?.split('/')[0];
-          return albumId ? (
-            <iframe
-              src={`https://imgur.com/a/${albumId}/embed`}
-              className="w-full h-full"
-              allowFullScreen
-              onClick={handleView}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-muted">
-              Invalid Imgur URL
-            </div>
-          );
-        }
-        // Fall through to default
-      default:
-        return (
-          <div className="w-full h-full flex items-center justify-center bg-muted">
-            <img
-              src={thumbnail}
-              alt={title}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onClick={handleView}
-            />
-          </div>
-        );
+        </div>
+      );
+    } else if (isDirectImageUrl) {
+      return (
+        <div 
+          className="aspect-video w-full rounded-md overflow-hidden bg-muted cursor-pointer"
+          onClick={handleThumbnailClick}
+        >
+          <img 
+            src={thumbnail} 
+            alt={title} 
+            className="w-full h-full object-cover" 
+          />
+        </div>
+      );
+    } else {
+      // Fallback for other types of content or invalid URLs
+      return (
+        <div 
+          className="aspect-video w-full rounded-md overflow-hidden bg-muted flex items-center justify-center cursor-pointer"
+          onClick={handleThumbnailClick}
+        >
+          <p className="text-muted-foreground">Click to view content</p>
+        </div>
+      );
     }
   };
 
   return (
-    <div className="relative w-full aspect-[9/16] bg-muted rounded-lg overflow-hidden">
-      {renderMedia()}
-      
-      {/* Category badge */}
-      <div className="absolute top-4 left-4 z-10">
-        <Badge variant="secondary" className="px-2 py-1 bg-black/50 backdrop-blur-sm">
-          <Tag className="h-3 w-3 mr-1" />
-          {category}
-        </Badge>
-      </div>
-      
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-        <h3 className="font-medium text-white">{title}</h3>
-        <p className="text-sm text-gray-300">{author}</p>
-      </div>
-
-      <div className="absolute right-4 bottom-20 flex flex-col items-center space-y-4">
-        <button 
-          className={`p-3 rounded-full ${liked ? 'bg-red-500/30' : 'bg-primary/10'} backdrop-blur-sm hover:bg-primary/20 transition-colors group`}
-          onClick={handleLike}
-        >
-          <Heart className={`h-6 w-6 group-hover:scale-110 transition-transform ${liked ? 'fill-red-500 text-red-500' : ''}`} />
-          <span className="text-xs mt-1">{likesCount}</span>
+    <Card className="overflow-hidden">
+      <CardHeader className="p-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="font-semibold text-lg line-clamp-2">{title}</h3>
+            <p className="text-sm text-muted-foreground">by {author}</p>
+          </div>
+          <Badge variant="outline" className="ml-2">
+            {category}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {renderThumbnail()}
+      </CardContent>
+      <CardFooter className="p-4 flex justify-between">
+        <div className="flex space-x-4">
+          <button 
+            className={`flex items-center space-x-1 ${isLiked ? 'text-red-500' : ''}`}
+            onClick={handleLikeClick}
+            disabled={isSubmitting || isLiked}
+          >
+            <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+            <span>{likeCount}</span>
+          </button>
+          <button 
+            className="flex items-center space-x-1"
+            onClick={handleCommentClick}
+          >
+            <MessageCircle className="h-5 w-5" />
+            <span>{commentCount}</span>
+          </button>
+        </div>
+        <button className="flex items-center space-x-1">
+          <Share2 className="h-5 w-5" />
+          <span>Share</span>
         </button>
-
-        <Dialog open={isCommentDialogOpen} onOpenChange={setIsCommentDialogOpen}>
-          <DialogTrigger asChild>
-            <button 
-              className="p-3 rounded-full bg-primary/10 backdrop-blur-sm hover:bg-primary/20 transition-colors group"
-              onClick={openCommentDialog}
+      </CardFooter>
+      
+      {showCommentInput && (
+        <div className="px-4 pb-4">
+          <form onSubmit={handleCommentSubmit} className="flex space-x-2">
+            <input
+              type="text"
+              className="flex-1 bg-muted rounded-md px-3 py-2 text-sm"
+              placeholder="Add a comment..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              disabled={isSubmitting}
+            />
+            <button
+              type="submit"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-2 rounded-md text-sm font-medium"
+              disabled={isSubmitting || !commentText.trim()}
             >
-              <MessageCircle className="h-6 w-6 group-hover:scale-110 transition-transform" />
-              <span className="text-xs mt-1">{commentsCount}</span>
+              Post
             </button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add a comment</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <Textarea
-                placeholder="Write your comment here..."
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                className="min-h-24"
-              />
-              <div className="flex justify-end">
-                <Button onClick={handleComment} disabled={!commentText.trim()}>
-                  Post Comment
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <button className="p-3 rounded-full bg-primary/10 backdrop-blur-sm hover:bg-primary/20 transition-colors group">
-          <Share2 className="h-6 w-6 group-hover:scale-110 transition-transform" />
-        </button>
-      </div>
-    </div>
+          </form>
+        </div>
+      )}
+    </Card>
   );
-}
+};

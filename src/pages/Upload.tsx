@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Link, Upload as UploadIcon, ImageIcon, FileVideo, AlertCircle, Tag } from "lucide-react";
+import { Link, Upload as UploadIcon, ImageIcon, FileVideo, AlertCircle, Tag, Filter } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -12,12 +12,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "./Discover";
 
 // File size limits in bytes
@@ -90,6 +94,23 @@ const Upload = () => {
         fileInputRef.current.value = '';
       }
     }
+  };
+
+  // Category management functions
+  const toggleUrlCategory = (selectedCategory: string) => {
+    setCategory(prev => prev === selectedCategory ? "" : selectedCategory);
+  };
+
+  const toggleFileCategory = (selectedCategory: string) => {
+    setFileCategory(prev => prev === selectedCategory ? "" : selectedCategory);
+  };
+
+  const clearUrlCategory = () => {
+    setCategory("");
+  };
+
+  const clearFileCategory = () => {
+    setFileCategory("");
   };
 
   // Handle URL submission
@@ -319,16 +340,59 @@ const Upload = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="category">Category</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex justify-between items-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex items-center gap-2">
+                          <Filter className="h-4 w-4" />
+                          {category ? category : "Select a category"}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56">
+                        <DropdownMenuLabel>Select a category</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {CATEGORIES.map(cat => (
+                          <DropdownMenuCheckboxItem
+                            key={cat}
+                            checked={category === cat}
+                            onCheckedChange={() => toggleUrlCategory(cat)}
+                          >
+                            {cat}
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={clearUrlCategory}>
+                          Clear selection
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    
+                    {category && (
+                      <Button variant="ghost" size="sm" onClick={clearUrlCategory}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {category && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Badge 
+                        variant="secondary"
+                        className="px-2 py-1 flex items-center gap-1"
+                      >
+                        {category}
+                        <button 
+                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                          onClick={clearUrlCategory}
+                        >
+                          <span className="sr-only">Remove</span>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -415,16 +479,59 @@ const Upload = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="fileCategory">Category</Label>
-                  <Select value={fileCategory} onValueChange={setFileCategory}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex justify-between items-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex items-center gap-2">
+                          <Filter className="h-4 w-4" />
+                          {fileCategory ? fileCategory : "Select a category"}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56">
+                        <DropdownMenuLabel>Select a category</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {CATEGORIES.map(cat => (
+                          <DropdownMenuCheckboxItem
+                            key={cat}
+                            checked={fileCategory === cat}
+                            onCheckedChange={() => toggleFileCategory(cat)}
+                          >
+                            {cat}
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={clearFileCategory}>
+                          Clear selection
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    
+                    {fileCategory && (
+                      <Button variant="ghost" size="sm" onClick={clearFileCategory}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {fileCategory && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Badge 
+                        variant="secondary"
+                        className="px-2 py-1 flex items-center gap-1"
+                      >
+                        {fileCategory}
+                        <button 
+                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                          onClick={clearFileCategory}
+                        >
+                          <span className="sr-only">Remove</span>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
                 <button
