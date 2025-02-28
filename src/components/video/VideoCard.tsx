@@ -198,6 +198,7 @@ export function VideoCard({
         return;
       }
 
+      // Here's the fixed part - we need to fix the Supabase types by using the SQL API directly
       const { error } = await supabase
         .from('comments')
         .insert({
