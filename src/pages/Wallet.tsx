@@ -17,14 +17,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 interface Profile {
   content_tokens: number;
-  view_tokens: number;
   transfer_code: string;
 }
 
 interface Transaction {
   id: string;
   content_tokens: number;
-  view_tokens: number;
   type: string;
   created_at: string;
   profiles: {
@@ -38,7 +36,6 @@ const Wallet = () => {
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [recipientCode, setRecipientCode] = useState("");
   const [contentTokensAmount, setContentTokensAmount] = useState("");
-  const [viewTokensAmount, setViewTokensAmount] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -52,7 +49,7 @@ const Wallet = () => {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('content_tokens, view_tokens, transfer_code')
+      .select('content_tokens, transfer_code')
       .eq('id', user.id)
       .single();
 
@@ -96,10 +93,11 @@ const Wallet = () => {
 
   const handleTransferTokens = async () => {
     try {
+      // Set view_tokens_amount to 0 since we're only using content tokens now
       const { error } = await supabase.rpc('transfer_tokens', {
         recipient_transfer_code: recipientCode,
         content_tokens_amount: parseFloat(contentTokensAmount) || 0,
-        view_tokens_amount: parseFloat(viewTokensAmount) || 0,
+        view_tokens_amount: 0 // Always 0 since we removed view tokens
       });
 
       if (error) throw error;
@@ -112,7 +110,6 @@ const Wallet = () => {
       setIsTransferOpen(false);
       setRecipientCode("");
       setContentTokensAmount("");
-      setViewTokensAmount("");
       
       // Refresh data
       fetchProfile();
@@ -157,15 +154,9 @@ const Wallet = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-muted p-4 rounded-lg">
-              <div className="text-sm text-muted-foreground mb-2">Content Tokens</div>
-              <div className="text-2xl font-bold">{profile.content_tokens.toFixed(8)}</div>
-            </div>
-            <div className="bg-muted p-4 rounded-lg">
-              <div className="text-sm text-muted-foreground mb-2">View Tokens</div>
-              <div className="text-2xl font-bold">{profile.view_tokens.toFixed(8)}</div>
-            </div>
+          <div className="bg-muted p-6 rounded-lg text-center">
+            <div className="text-sm text-muted-foreground mb-2">Content Tokens</div>
+            <div className="text-3xl font-bold">{profile.content_tokens.toFixed(8)}</div>
           </div>
 
           <Dialog open={isTransferOpen} onOpenChange={setIsTransferOpen}>
@@ -201,18 +192,6 @@ const Wallet = () => {
                     placeholder="0.00000000"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="viewTokens">View Tokens Amount</Label>
-                  <Input
-                    id="viewTokens"
-                    type="number"
-                    step="0.00000001"
-                    min="0"
-                    value={viewTokensAmount}
-                    onChange={(e) => setViewTokensAmount(e.target.value)}
-                    placeholder="0.00000000"
-                  />
-                </div>
                 <button
                   onClick={handleTransferTokens}
                   className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-white rounded-lg"
@@ -245,7 +224,7 @@ const Wallet = () => {
                     <div>
                       <div className="font-medium capitalize">{transaction.type}</div>
                       <div className="text-sm text-muted-foreground">
-                        {transaction.profiles.username}
+                        {transaction.profiles?.username}
                       </div>
                     </div>
                   </div>
@@ -253,11 +232,6 @@ const Wallet = () => {
                     {transaction.content_tokens > 0 && (
                       <div className="text-sm">
                         {transaction.content_tokens.toFixed(8)} CT
-                      </div>
-                    )}
-                    {transaction.view_tokens > 0 && (
-                      <div className="text-sm">
-                        {transaction.view_tokens.toFixed(8)} VT
                       </div>
                     )}
                   </div>

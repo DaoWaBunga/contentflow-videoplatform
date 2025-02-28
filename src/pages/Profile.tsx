@@ -2,12 +2,15 @@
 import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
-import { Settings, Grid3X3, User as UserIcon } from "lucide-react";
+import { Settings, Grid3X3, User as UserIcon, Edit, Trash2 } from "lucide-react";
 import { VideoCard } from "@/components/video/VideoCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface Profile {
   username: string;
@@ -22,6 +25,7 @@ interface Video {
   thumbnail_url: string | null;
   likes_count: number;
   comments_count: number;
+  category: string | null;
 }
 
 const Profile = () => {
@@ -29,6 +33,9 @@ const Profile = () => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<Profile | null>(null);
+  const [isEditVideoOpen, setIsEditVideoOpen] = useState(false);
+  const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
+  const [editedTitle, setEditedTitle] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -110,6 +117,69 @@ const Profile = () => {
     toast({
       title: "Success",
       description: "Profile updated successfully",
+    });
+  };
+
+  const handleEditVideo = (video: Video) => {
+    setCurrentVideo(video);
+    setEditedTitle(video.title);
+    setIsEditVideoOpen(true);
+  };
+
+  const handleUpdateVideo = async () => {
+    if (!currentVideo || !editedTitle.trim()) return;
+
+    const { error } = await supabase
+      .from('videos')
+      .update({ title: editedTitle.trim() })
+      .eq('id', currentVideo.id);
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update video title",
+      });
+      return;
+    }
+
+    // Update local state
+    setVideos(videos.map(video => 
+      video.id === currentVideo.id 
+        ? { ...video, title: editedTitle.trim() } 
+        : video
+    ));
+    
+    setIsEditVideoOpen(false);
+    setCurrentVideo(null);
+    
+    toast({
+      title: "Success",
+      description: "Video title updated successfully",
+    });
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    const { error } = await supabase
+      .from('videos')
+      .delete()
+      .eq('id', videoId);
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete video",
+      });
+      return;
+    }
+
+    // Update local state
+    setVideos(videos.filter(video => video.id !== videoId));
+    
+    toast({
+      title: "Success",
+      description: "Video deleted successfully",
     });
   };
 
@@ -213,18 +283,94 @@ const Profile = () => {
               <Grid3X3 className="h-5 w-5" />
             </button>
           </div>
-          {videos.map((video) => (
-            <VideoCard
-              key={video.id}
-              title={video.title}
-              author={profile.username}
-              thumbnail={video.thumbnail_url || video.url}
-              likes={video.likes_count}
-              comments={video.comments_count}
-            />
-          ))}
+
+          {videos.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              You haven't uploaded any videos yet.
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {videos.map((video) => (
+                <div key={video.id} className="relative">
+                  <div className="absolute top-2 right-2 z-10 flex gap-2">
+                    <button 
+                      onClick={() => handleEditVideo(video)}
+                      className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="p-2 rounded-full bg-red-500/50 text-white hover:bg-red-500/70 transition-colors">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Video</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this video? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => handleDeleteVideo(video.id)}
+                            className="bg-red-500 hover:bg-red-600"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                  
+                  <VideoCard
+                    id={video.id}
+                    title={video.title}
+                    author={profile.username}
+                    thumbnail={video.thumbnail_url || video.url}
+                    likes={video.likes_count || 0}
+                    comments={video.comments_count || 0}
+                    category={video.category || undefined}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
+      
+      {/* Edit Video Dialog */}
+      <Dialog open={isEditVideoOpen} onOpenChange={setIsEditVideoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Video</DialogTitle>
+            <DialogDescription>
+              Update the title of your video
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="videoTitle">Title</Label>
+              <Input
+                id="videoTitle"
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                placeholder="Enter video title"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditVideoOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateVideo}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <BottomNav />
     </div>
   );
