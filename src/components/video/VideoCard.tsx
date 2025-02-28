@@ -4,6 +4,15 @@ import { Play, Heart, MessageCircle, Share2, Tag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogTrigger 
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface VideoCardProps {
   id?: string;
@@ -26,9 +35,28 @@ export function VideoCard({
 }: VideoCardProps) {
   const [isViewed, setIsViewed] = useState(false);
   const [mediaType, setMediaType] = useState<"image" | "video" | "youtube" | "iframe" | "unknown">("unknown");
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(likes);
+  const [commentsCount, setCommentsCount] = useState(comments);
+  const [commentText, setCommentText] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
+    checkAuthStatus();
+    determineMediaType();
+    if (id) {
+      checkIfLiked();
+    }
+  }, [id, thumbnail]);
+
+  const checkAuthStatus = async () => {
+    const { data } = await supabase.auth.getUser();
+    setIsAuthenticated(!!data.user);
+  };
+
+  const determineMediaType = () => {
     // Determine media type based on thumbnail/URL
     if (thumbnail.match(/\.(jpeg|jpg|gif|png)$/i) || thumbnail.includes('images.unsplash.com')) {
       setMediaType("image");
@@ -42,7 +70,26 @@ export function VideoCard({
     } else {
       setMediaType("unknown");
     }
-  }, [thumbnail]);
+  };
+
+  const checkIfLiked = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !id) return;
+
+    const { data, error } = await supabase
+      .from('likes')
+      .select('*')
+      .eq('video_id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error checking like status:", error);
+      return;
+    }
+
+    setLiked(!!data);
+  };
 
   const handleView = async () => {
     if (!id || isViewed) return;
@@ -73,6 +120,121 @@ export function VideoCard({
         description: error.message,
       });
     }
+  };
+
+  const handleLike = async () => {
+    if (!id) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          variant: "destructive",
+          title: "Authentication Required",
+          description: "Please sign in to like videos",
+        });
+        return;
+      }
+
+      if (liked) {
+        // Unlike the video
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .eq('video_id', id)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+
+        setLiked(false);
+        setLikesCount(prev => Math.max(0, prev - 1));
+        toast({
+          title: "Unliked",
+          description: "You have unliked this video",
+        });
+      } else {
+        // Like the video
+        const { error } = await supabase
+          .from('likes')
+          .insert({
+            video_id: id,
+            user_id: user.id
+          });
+
+        if (error) {
+          // If there's a conflict (already liked), don't show an error
+          if (error.code !== '23505') { // PostgreSQL unique constraint violation
+            throw error;
+          }
+        } else {
+          setLiked(true);
+          setLikesCount(prev => prev + 1);
+          toast({
+            title: "Liked!",
+            description: "You liked this video",
+          });
+        }
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    }
+  };
+
+  const handleComment = async () => {
+    if (!id || !commentText.trim()) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          variant: "destructive",
+          title: "Authentication Required",
+          description: "Please sign in to comment",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('comments')
+        .insert({
+          video_id: id,
+          user_id: user.id,
+          content: commentText.trim()
+        });
+
+      if (error) throw error;
+
+      setCommentText("");
+      setCommentsCount(prev => prev + 1);
+      setIsCommentDialogOpen(false);
+      
+      toast({
+        title: "Comment Posted",
+        description: "Your comment has been added successfully",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    }
+  };
+
+  const openCommentDialog = () => {
+    if (!isAuthenticated) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to comment",
+      });
+      return;
+    }
+    setIsCommentDialogOpen(true);
   };
 
   // Function to render the correct media based on type
@@ -169,15 +331,46 @@ export function VideoCard({
         <h3 className="font-medium text-white">{title}</h3>
         <p className="text-sm text-gray-300">{author}</p>
       </div>
+
       <div className="absolute right-4 bottom-20 flex flex-col items-center space-y-4">
-        <button className="p-3 rounded-full bg-primary/10 backdrop-blur-sm hover:bg-primary/20 transition-colors group">
-          <Heart className="h-6 w-6 group-hover:scale-110 transition-transform" />
-          <span className="text-xs mt-1">{likes}</span>
+        <button 
+          className={`p-3 rounded-full ${liked ? 'bg-red-500/30' : 'bg-primary/10'} backdrop-blur-sm hover:bg-primary/20 transition-colors group`}
+          onClick={handleLike}
+        >
+          <Heart className={`h-6 w-6 group-hover:scale-110 transition-transform ${liked ? 'fill-red-500 text-red-500' : ''}`} />
+          <span className="text-xs mt-1">{likesCount}</span>
         </button>
-        <button className="p-3 rounded-full bg-primary/10 backdrop-blur-sm hover:bg-primary/20 transition-colors group">
-          <MessageCircle className="h-6 w-6 group-hover:scale-110 transition-transform" />
-          <span className="text-xs mt-1">{comments}</span>
-        </button>
+
+        <Dialog open={isCommentDialogOpen} onOpenChange={setIsCommentDialogOpen}>
+          <DialogTrigger asChild>
+            <button 
+              className="p-3 rounded-full bg-primary/10 backdrop-blur-sm hover:bg-primary/20 transition-colors group"
+              onClick={openCommentDialog}
+            >
+              <MessageCircle className="h-6 w-6 group-hover:scale-110 transition-transform" />
+              <span className="text-xs mt-1">{commentsCount}</span>
+            </button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add a comment</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <Textarea
+                placeholder="Write your comment here..."
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                className="min-h-24"
+              />
+              <div className="flex justify-end">
+                <Button onClick={handleComment} disabled={!commentText.trim()}>
+                  Post Comment
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <button className="p-3 rounded-full bg-primary/10 backdrop-blur-sm hover:bg-primary/20 transition-colors group">
           <Share2 className="h-6 w-6 group-hover:scale-110 transition-transform" />
         </button>
