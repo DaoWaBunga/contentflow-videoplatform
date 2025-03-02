@@ -1,11 +1,22 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Heart, MessageCircle, Share2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+
+interface Comment {
+  id: string;
+  content: string;
+  created_at: string;
+  profiles: {
+    username: string;
+  };
+}
 
 interface VideoCardProps {
   id: string;
@@ -34,6 +45,9 @@ export const VideoCard = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [commentsData, setCommentsData] = useState<Comment[]>([]);
+  const [showAllComments, setShowAllComments] = useState(false);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
 
   const isYoutubeVideo = 
     thumbnail.includes("youtube.com") || 
@@ -45,6 +59,59 @@ export const VideoCard = ({
     thumbnail.endsWith(".png") || 
     thumbnail.endsWith(".gif") ||
     thumbnail.includes("storage.googleapis.com");
+
+  useEffect(() => {
+    // Check if user has already liked this video
+    const checkIfLiked = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data } = await supabase
+          .from('likes')
+          .select()
+          .eq('video_id', id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        setIsLiked(!!data);
+      }
+    };
+    
+    checkIfLiked();
+  }, [id]);
+
+  // Fetch comments when comment section is opened
+  useEffect(() => {
+    if (showCommentInput && commentsData.length === 0) {
+      fetchComments();
+    }
+  }, [showCommentInput]);
+
+  const fetchComments = async () => {
+    setIsLoadingComments(true);
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .select(`
+          id,
+          content,
+          created_at,
+          profiles:user_id (
+            username
+          )
+        `)
+        .eq('video_id', id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      setCommentsData(data as Comment[] || []);
+    } catch (error: any) {
+      console.error("Error fetching comments:", error);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
 
   // Extract video ID from YouTube URL
   const getYoutubeEmbedUrl = (url: string) => {
@@ -165,7 +232,9 @@ export const VideoCard = ({
       // Update UI
       setCommentCount(prev => prev + 1);
       setCommentText("");
-      setShowCommentInput(false);
+      
+      // Refetch comments to show the new one
+      fetchComments();
       
       toast({
         title: "Comment added!",
@@ -181,6 +250,11 @@ export const VideoCard = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
   };
 
   const renderThumbnail = () => {
@@ -223,6 +297,10 @@ export const VideoCard = ({
     }
   };
 
+  // Determine how many comments to display
+  const visibleComments = showAllComments ? commentsData : commentsData.slice(0, 2);
+  const hasMoreComments = commentsData.length > 2;
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="p-4">
@@ -264,24 +342,70 @@ export const VideoCard = ({
       </CardFooter>
       
       {showCommentInput && (
-        <div className="px-4 pb-4">
-          <form onSubmit={handleCommentSubmit} className="flex space-x-2">
-            <input
-              type="text"
-              className="flex-1 bg-muted rounded-md px-3 py-2 text-sm"
-              placeholder="Add a comment..."
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              disabled={isSubmitting}
-            />
-            <button
-              type="submit"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-2 rounded-md text-sm font-medium"
-              disabled={isSubmitting || !commentText.trim()}
-            >
-              Post
-            </button>
-          </form>
+        <div className="px-4 pb-4 border-t border-border">
+          {isLoadingComments ? (
+            <div className="py-3 text-center text-sm text-muted-foreground">
+              Loading comments...
+            </div>
+          ) : (
+            <>
+              {commentsData.length > 0 ? (
+                <div className="mb-3">
+                  <div className="flex justify-between items-center my-2">
+                    <h4 className="text-sm font-medium">Comments ({commentCount})</h4>
+                    {hasMoreComments && (
+                      <button 
+                        onClick={() => setShowAllComments(!showAllComments)}
+                        className="text-xs text-primary flex items-center"
+                      >
+                        {showAllComments ? (
+                          <>Show less <ChevronUp className="h-3 w-3 ml-1" /></>
+                        ) : (
+                          <>View more comments <ChevronDown className="h-3 w-3 ml-1" /></>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  
+                  <ScrollArea className={`${showAllComments ? 'max-h-[200px]' : ''} pr-2`}>
+                    <div className="space-y-3">
+                      {visibleComments.map((comment) => (
+                        <div key={comment.id} className="bg-card/50 p-2 rounded-md">
+                          <div className="flex justify-between">
+                            <p className="text-xs font-medium">{comment.profiles.username}</p>
+                            <span className="text-[10px] text-muted-foreground">{formatDate(comment.created_at)}</span>
+                          </div>
+                          <p className="text-sm mt-1">{comment.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              ) : (
+                <div className="py-2 text-center text-sm text-muted-foreground">
+                  No comments yet. Be the first to comment!
+                </div>
+              )}
+              
+              <form onSubmit={handleCommentSubmit} className="flex space-x-2 mt-2">
+                <Input
+                  type="text"
+                  className="flex-1 min-h-9 focus:min-h-12 transition-all"
+                  placeholder="Add a comment..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  disabled={isSubmitting}
+                />
+                <button
+                  type="submit"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-2 rounded-md text-sm font-medium"
+                  disabled={isSubmitting || !commentText.trim()}
+                >
+                  Post
+                </button>
+              </form>
+            </>
+          )}
         </div>
       )}
     </Card>
