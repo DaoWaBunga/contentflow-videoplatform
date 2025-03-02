@@ -150,6 +150,41 @@ export type Database = {
         }
         Relationships: []
       }
+      store_purchases: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          item_id: string
+          price: number
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          item_id: string
+          price: number
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          item_id?: string
+          price?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       token_transactions: {
         Row: {
           content_tokens: number

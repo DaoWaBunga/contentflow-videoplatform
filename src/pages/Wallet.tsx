@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -194,11 +193,10 @@ const Wallet = () => {
 
   const handleTransferTokens = async () => {
     try {
-      // Set view_tokens_amount to 0 since we're only using content tokens now
       const { error } = await supabase.rpc('transfer_tokens', {
         recipient_transfer_code: recipientCode,
         content_tokens_amount: parseFloat(contentTokensAmount) || 0,
-        view_tokens_amount: 0 // Always 0 since we removed view tokens
+        view_tokens_amount: 0
       });
 
       if (error) throw error;
@@ -212,7 +210,6 @@ const Wallet = () => {
       setRecipientCode("");
       setContentTokensAmount("");
       
-      // Refresh data
       fetchProfile();
       fetchTransactions();
     } catch (error: any) {
@@ -228,7 +225,6 @@ const Wallet = () => {
     if (!selectedItem || !profile) return;
     
     try {
-      // Check if user has enough tokens
       if (profile.content_tokens < selectedItem.price) {
         toast({
           variant: "destructive",
@@ -239,7 +235,6 @@ const Wallet = () => {
         return;
       }
       
-      // Record purchase transaction
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
@@ -247,15 +242,13 @@ const Wallet = () => {
         .from('token_transactions')
         .insert({
           sender_id: user.id,
-          recipient_id: user.id, // Self-transaction for store purchase
-          content_tokens: -selectedItem.price, // Negative amount for purchase
-          type: 'purchase',
-          // Note: We're not setting video_id as this isn't related to a video
+          recipient_id: user.id,
+          content_tokens: -selectedItem.price,
+          type: 'purchase'
         });
       
       if (transactionError) throw transactionError;
       
-      // Update user's token balance
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
@@ -265,14 +258,11 @@ const Wallet = () => {
       
       if (profileError) throw profileError;
       
-      // Record the purchase in store_purchases table (we'll need to create this table)
-      const { error: purchaseError } = await supabase
-        .from('store_purchases')
-        .insert({
-          user_id: user.id,
-          item_id: selectedItem.id,
-          price: selectedItem.price
-        });
+      const { error: purchaseError } = await supabase.rpc('create_store_purchase', {
+        p_user_id: user.id,
+        p_item_id: selectedItem.id,
+        p_price: selectedItem.price
+      });
       
       if (purchaseError) {
         console.error("Failed to record purchase, but tokens were deducted:", purchaseError);
@@ -283,7 +273,6 @@ const Wallet = () => {
         description: `You've successfully purchased ${selectedItem.name}`,
       });
       
-      // Refresh data
       fetchProfile();
       fetchTransactions();
       setConfirmPurchaseOpen(false);
