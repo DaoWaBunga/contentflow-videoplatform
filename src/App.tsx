@@ -11,6 +11,7 @@ import Discover from "./pages/Discover";
 import Upload from "./pages/Upload";
 import Wallet from "./pages/Wallet";
 import Profile from "./pages/Profile";
+import Verified from "./pages/verified";
 import NotFound from "./pages/NotFound";
 import { useEffect, useState } from "react";
 
