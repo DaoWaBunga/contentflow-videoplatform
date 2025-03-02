@@ -325,6 +325,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_store_purchase: {
+        Args: {
+          p_user_id: string
+          p_item_id: string
+          p_price: number
+        }
+        Returns: undefined
+      }
       handle_video_view: {
         Args: {
           video_id: string

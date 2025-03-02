@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -238,6 +239,7 @@ const Wallet = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
+      // First, record the transaction for the token deduction
       const { error: transactionError } = await supabase
         .from('token_transactions')
         .insert({
@@ -249,6 +251,7 @@ const Wallet = () => {
       
       if (transactionError) throw transactionError;
       
+      // Update the user's token balance
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
@@ -258,11 +261,14 @@ const Wallet = () => {
       
       if (profileError) throw profileError;
       
-      const { error: purchaseError } = await supabase.rpc('create_store_purchase', {
-        p_user_id: user.id,
-        p_item_id: selectedItem.id,
-        p_price: selectedItem.price
-      });
+      // Record the purchase using a direct table insert instead of RPC
+      const { error: purchaseError } = await supabase
+        .from('store_purchases')
+        .insert({
+          user_id: user.id,
+          item_id: selectedItem.id,
+          price: selectedItem.price
+        });
       
       if (purchaseError) {
         console.error("Failed to record purchase, but tokens were deducted:", purchaseError);
