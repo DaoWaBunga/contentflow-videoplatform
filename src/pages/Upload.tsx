@@ -1,5 +1,4 @@
-
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Input } from "@/components/ui/input";
@@ -23,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "./Discover";
+import { usePostLimit } from "@/hooks/usePostLimit";
+import { PostLimitMessage } from "@/components/PostLimitMessage";
 
 // File size limits in bytes
 const IMAGE_SIZE_LIMIT = 5 * 1024 * 1024; // 5MB
@@ -43,6 +44,9 @@ const Upload = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  
+  // Post limit check
+  const { canPost, loading: loadingPostLimit } = usePostLimit();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -117,6 +121,15 @@ const Upload = () => {
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!canPost) {
+      toast({
+        variant: "destructive",
+        title: "Daily Post Limit Reached",
+        description: "You've reached your limit of 5 posts per day. Upgrade to Premium for unlimited posts.",
+      });
+      return;
+    }
+    
     if (!embedUrl || !title) {
       toast({
         variant: "destructive",
@@ -152,7 +165,7 @@ const Upload = () => {
 
       if (mediaError) throw mediaError;
 
-      // Reward tokens for the upload
+      // Reward tokens for the upload - already updated in the SQL
       const { error: rewardError } = await supabase.rpc('reward_upload_tokens', {
         user_id: user.id,
         is_video: embedUrl.includes('youtube.com') || embedUrl.includes('youtu.be')
@@ -183,6 +196,15 @@ const Upload = () => {
   // Handle file upload
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!canPost) {
+      toast({
+        variant: "destructive",
+        title: "Daily Post Limit Reached",
+        description: "You've reached your limit of 5 posts per day. Upgrade to Premium for unlimited posts.",
+      });
+      return;
+    }
     
     if (!file || !fileTitle) {
       toast({
@@ -289,262 +311,281 @@ const Upload = () => {
             </p>
           </div>
           
-          <Tabs defaultValue="url" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="url">URL / Embed</TabsTrigger>
-              <TabsTrigger value="file">File Upload</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="url" className="mt-4">
-              <form onSubmit={handleUrlSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    placeholder="Give your content a title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="embedUrl">Content URL</Label>
-                  <div className="relative">
-                    <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      id="embedUrl"
-                      placeholder="YouTube, Imgur, or direct media URL"
-                      value={embedUrl}
-                      onChange={(e) => setEmbedUrl(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Supports YouTube, Imgur, and direct image/video links
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="thumbnailUrl">Thumbnail URL (optional)</Label>
-                  <div className="relative">
-                    <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      id="thumbnailUrl"
-                      placeholder="Paste your thumbnail link here"
-                      value={thumbnailUrl}
-                      onChange={(e) => setThumbnailUrl(e.target.value)}
-                      className="pl-10"
-                    />
+          {loadingPostLimit ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-pulse flex space-x-4">
+                <div className="rounded-full bg-slate-200 h-10 w-10"></div>
+                <div className="flex-1 space-y-4 py-1">
+                  <div className="h-2 bg-slate-200 rounded"></div>
+                  <div className="space-y-2">
+                    <div className="h-2 bg-slate-200 rounded"></div>
                   </div>
                 </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {canPost === false && <PostLimitMessage />}
+              
+              <Tabs defaultValue="url" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="url">URL / Embed</TabsTrigger>
+                  <TabsTrigger value="file">File Upload</TabsTrigger>
+                </TabsList>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <div className="flex justify-between items-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="flex items-center gap-2">
-                          <Filter className="h-4 w-4" />
-                          {category ? category : "Select a category"}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-56">
-                        <DropdownMenuLabel>Select a category</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {CATEGORIES.map(cat => (
-                          <DropdownMenuCheckboxItem
-                            key={cat}
-                            checked={category === cat}
-                            onCheckedChange={() => toggleUrlCategory(cat)}
-                          >
-                            {cat}
-                          </DropdownMenuCheckboxItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={clearUrlCategory}>
-                          Clear selection
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                <TabsContent value="url" className="mt-4">
+                  <form onSubmit={handleUrlSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Title</Label>
+                      <Input
+                        id="title"
+                        placeholder="Give your content a title"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                      />
+                    </div>
                     
-                    {category && (
-                      <Button variant="ghost" size="sm" onClick={clearUrlCategory}>
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {category && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Badge 
-                        variant="secondary"
-                        className="px-2 py-1 flex items-center gap-1"
-                      >
-                        {category}
-                        <button 
-                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                          onClick={clearUrlCategory}
-                        >
-                          <span className="sr-only">Remove</span>
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </button>
-                      </Badge>
+                    <div className="space-y-2">
+                      <Label htmlFor="embedUrl">Content URL</Label>
+                      <div className="relative">
+                        <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Input
+                          id="embedUrl"
+                          placeholder="YouTube, Imgur, or direct media URL"
+                          value={embedUrl}
+                          onChange={(e) => setEmbedUrl(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Supports YouTube, Imgur, and direct image/video links
+                      </p>
                     </div>
-                  )}
-                </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-2 px-4 bg-primary hover:bg-primary/90 text-white rounded-lg flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <UploadIcon className="h-5 w-5" />
-                  <span>Upload Content</span>
-                </button>
-              </form>
-            </TabsContent>
-            
-            <TabsContent value="file" className="mt-4">
-              <form onSubmit={handleFileUpload} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="fileTitle">Title</Label>
-                  <Input
-                    id="fileTitle"
-                    placeholder="Give your content a title"
-                    value={fileTitle}
-                    onChange={(e) => setFileTitle(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="file">File</Label>
-                  <div 
-                    className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-8 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {file ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-center">
-                          {fileType === "image" ? (
-                            <ImageIcon className="h-12 w-12 text-primary" />
-                          ) : (
-                            <FileVideo className="h-12 w-12 text-primary" />
-                          )}
-                        </div>
-                        <p className="font-medium">{file.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {(file.size / (1024 * 1024)).toFixed(2)} MB
-                        </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="thumbnailUrl">Thumbnail URL (optional)</Label>
+                      <div className="relative">
+                        <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Input
+                          id="thumbnailUrl"
+                          placeholder="Paste your thumbnail link here"
+                          value={thumbnailUrl}
+                          onChange={(e) => setThumbnailUrl(e.target.value)}
+                          className="pl-10"
+                        />
                       </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-center">
-                          <UploadIcon className="h-12 w-12 text-muted-foreground/50" />
-                        </div>
-                        <p className="font-medium">Drag and drop or click to upload</p>
-                        <p className="text-sm text-muted-foreground">
-                          Images (JPEG, PNG, GIF) - max 5MB<br />
-                          Videos (MP4, MOV, WebM) - max 50MB
-                        </p>
-                      </div>
-                    )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      id="file"
-                      className="hidden"
-                      accept=".jpg,.jpeg,.png,.gif,.mp4,.mov,.webm"
-                      onChange={handleFileChange}
-                    />
-                  </div>
-                  
-                  {validationError && (
-                    <Alert variant="destructive" className="mt-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{validationError}</AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  {isUploading && (
-                    <div className="space-y-2 mt-4">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Uploading...</span>
-                        <span className="text-sm">{Math.round(uploadProgress)}%</span>
-                      </div>
-                      <Progress value={uploadProgress} className="h-2" />
                     </div>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="fileCategory">Category</Label>
-                  <div className="flex justify-between items-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="flex items-center gap-2">
-                          <Filter className="h-4 w-4" />
-                          {fileCategory ? fileCategory : "Select a category"}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-56">
-                        <DropdownMenuLabel>Select a category</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {CATEGORIES.map(cat => (
-                          <DropdownMenuCheckboxItem
-                            key={cat}
-                            checked={fileCategory === cat}
-                            onCheckedChange={() => toggleFileCategory(cat)}
-                          >
-                            {cat}
-                          </DropdownMenuCheckboxItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={clearFileCategory}>
-                          Clear selection
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                     
-                    {fileCategory && (
-                      <Button variant="ghost" size="sm" onClick={clearFileCategory}>
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {fileCategory && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Badge 
-                        variant="secondary"
-                        className="px-2 py-1 flex items-center gap-1"
-                      >
-                        {fileCategory}
-                        <button 
-                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                          onClick={clearFileCategory}
-                        >
-                          <span className="sr-only">Remove</span>
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </button>
-                      </Badge>
+                    <div className="space-y-2">
+                      <Label htmlFor="category">Category</Label>
+                      <div className="flex justify-between items-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex items-center gap-2">
+                              <Filter className="h-4 w-4" />
+                              {category ? category : "Select a category"}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuLabel>Select a category</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {CATEGORIES.map(cat => (
+                              <DropdownMenuCheckboxItem
+                                key={cat}
+                                checked={category === cat}
+                                onCheckedChange={() => toggleUrlCategory(cat)}
+                              >
+                                {cat}
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={clearUrlCategory}>
+                              Clear selection
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        
+                        {category && (
+                          <Button variant="ghost" size="sm" onClick={clearUrlCategory}>
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {category && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Badge 
+                            variant="secondary"
+                            className="px-2 py-1 flex items-center gap-1"
+                          >
+                            {category}
+                            <button 
+                              className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                              onClick={clearUrlCategory}
+                            >
+                              <span className="sr-only">Remove</span>
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
+                          </Badge>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <button
-                  type="submit"
-                  disabled={!file || isUploading || !!validationError}
-                  className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed text-white rounded-lg flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <UploadIcon className="h-5 w-5" />
-                  <span>{isUploading ? "Uploading..." : "Upload File"}</span>
-                </button>
-              </form>
-            </TabsContent>
-          </Tabs>
+                    <button
+                      type="submit"
+                      disabled={!canPost}
+                      className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed text-white rounded-lg flex items-center justify-center space-x-2 transition-colors"
+                    >
+                      <UploadIcon className="h-5 w-5" />
+                      <span>Upload Content</span>
+                    </button>
+                  </form>
+                </TabsContent>
+                
+                <TabsContent value="file" className="mt-4">
+                  <form onSubmit={handleFileUpload} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="fileTitle">Title</Label>
+                      <Input
+                        id="fileTitle"
+                        placeholder="Give your content a title"
+                        value={fileTitle}
+                        onChange={(e) => setFileTitle(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="file">File</Label>
+                      <div 
+                        className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-8 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {file ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-center">
+                              {fileType === "image" ? (
+                                <ImageIcon className="h-12 w-12 text-primary" />
+                              ) : (
+                                <FileVideo className="h-12 w-12 text-primary" />
+                              )}
+                            </div>
+                            <p className="font-medium">{file.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {(file.size / (1024 * 1024)).toFixed(2)} MB
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-center">
+                              <UploadIcon className="h-12 w-12 text-muted-foreground/50" />
+                            </div>
+                            <p className="font-medium">Drag and drop or click to upload</p>
+                            <p className="text-sm text-muted-foreground">
+                              Images (JPEG, PNG, GIF) - max 5MB<br />
+                              Videos (MP4, MOV, WebM) - max 50MB
+                            </p>
+                          </div>
+                        )}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          id="file"
+                          className="hidden"
+                          accept=".jpg,.jpeg,.png,.gif,.mp4,.mov,.webm"
+                          onChange={handleFileChange}
+                        />
+                      </div>
+                      
+                      {validationError && (
+                        <Alert variant="destructive" className="mt-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>{validationError}</AlertDescription>
+                        </Alert>
+                      )}
+                      
+                      {isUploading && (
+                        <div className="space-y-2 mt-4">
+                          <div className="flex justify-between">
+                            <span className="text-sm">Uploading...</span>
+                            <span className="text-sm">{Math.round(uploadProgress)}%</span>
+                          </div>
+                          <Progress value={uploadProgress} className="h-2" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="fileCategory">Category</Label>
+                      <div className="flex justify-between items-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex items-center gap-2">
+                              <Filter className="h-4 w-4" />
+                              {fileCategory ? fileCategory : "Select a category"}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuLabel>Select a category</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {CATEGORIES.map(cat => (
+                              <DropdownMenuCheckboxItem
+                                key={cat}
+                                checked={fileCategory === cat}
+                                onCheckedChange={() => toggleFileCategory(cat)}
+                              >
+                                {cat}
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={clearFileCategory}>
+                              Clear selection
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        
+                        {fileCategory && (
+                          <Button variant="ghost" size="sm" onClick={clearFileCategory}>
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {fileCategory && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Badge 
+                            variant="secondary"
+                            className="px-2 py-1 flex items-center gap-1"
+                          >
+                            {fileCategory}
+                            <button 
+                              className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                              onClick={clearFileCategory}
+                            >
+                              <span className="sr-only">Remove</span>
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={!canPost || !file || isUploading || !!validationError}
+                      className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed text-white rounded-lg flex items-center justify-center space-x-2 transition-colors"
+                    >
+                      <UploadIcon className="h-5 w-5" />
+                      <span>{isUploading ? "Uploading..." : "Upload File"}</span>
+                    </button>
+                  </form>
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
         </div>
       </main>
       <BottomNav />

@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -11,6 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useLocation } from "react-router-dom";
+import { SubscriptionButton } from "@/components/SubscriptionButton";
+import { ProfileImageUpload } from "@/components/ProfileImageUpload";
 
 interface Profile {
   username: string;
@@ -50,11 +54,33 @@ const Profile = () => {
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [editedTitle, setEditedTitle] = useState("");
   const [editedCategory, setEditedCategory] = useState("");
+  const [hasPremium, setHasPremium] = useState(false);
   const { toast } = useToast();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check for payment success/failure
+    const query = new URLSearchParams(location.search);
+    const paymentStatus = query.get('payment');
+    
+    if (paymentStatus === 'success') {
+      toast({
+        title: "Payment Successful",
+        description: "Thank you for subscribing to Premium! You now have unlimited posts.",
+      });
+    } else if (paymentStatus === 'canceled') {
+      toast({
+        variant: "destructive",
+        title: "Payment Canceled",
+        description: "Your subscription was not completed.",
+      });
+    }
+  }, [location, toast]);
 
   useEffect(() => {
     fetchProfile();
     fetchUserVideos();
+    checkPremiumStatus();
   }, []);
 
   const fetchProfile = async () => {
@@ -100,6 +126,26 @@ const Profile = () => {
     }
 
     setVideos(data || []);
+  };
+
+  const checkPremiumStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('store_purchases')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('item_id', 'premium_subscription')
+      .eq('active', true)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error checking premium status:", error);
+      return;
+    }
+
+    setHasPremium(!!data);
   };
 
   const handleSaveProfile = async () => {
@@ -199,6 +245,33 @@ const Profile = () => {
     });
   };
 
+  const handleProfileImageUploaded = (url: string) => {
+    if (isEditing && editedProfile) {
+      setEditedProfile({
+        ...editedProfile,
+        avatar_url: url
+      });
+    } else if (profile) {
+      setProfile({
+        ...profile,
+        avatar_url: url
+      });
+      
+      // Also update in the database
+      const updateProfile = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        await supabase
+          .from('profiles')
+          .update({ avatar_url: url })
+          .eq('id', user.id);
+      };
+      
+      updateProfile();
+    }
+  };
+
   if (!profile) return null;
 
   return (
@@ -219,6 +292,15 @@ const Profile = () => {
               </div>
             )}
           </div>
+
+          {!isEditing && (
+            <div className="mb-4">
+              <ProfileImageUpload 
+                currentImageUrl={profile.avatar_url}
+                onImageUploaded={handleProfileImageUploaded}
+              />
+            </div>
+          )}
 
           {isEditing ? (
             <div className="space-y-4">
@@ -282,12 +364,15 @@ const Profile = () => {
               {profile.bio && (
                 <p className="text-muted-foreground mb-4">{profile.bio}</p>
               )}
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
-              >
-                Edit Profile
-              </button>
+              <div className="flex flex-col gap-3 items-center">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+                >
+                  Edit Profile
+                </button>
+                <SubscriptionButton hasPremium={hasPremium} />
+              </div>
             </>
           )}
         </div>

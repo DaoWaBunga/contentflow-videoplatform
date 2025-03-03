@@ -1,22 +1,23 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 
-export default function Verified() {
-  const [searchParams] = useSearchParams();
-  const [message, setMessage] = useState("Verifying...");
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
+const Verified = () => {
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const type = searchParams.get("type");
-    if (type === "signup") {
-      setMessage("Your email has been successfully verified!Enjoy your Play Drive account! 🎉");
-    } else {
-      setMessage("Invalid or expired verification link.");
-    }
-  }, [searchParams]);
+    // Redirect to profile after verification
+    navigate("/profile");
+  }, [navigate]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen">
-      <h1 className="text-2xl font-bold">{message}</h1>
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold mb-4">Email Verified!</h1>
+        <p className="mb-4">Your email has been successfully verified. Redirecting to your profile...</p>
+      </div>
     </div>
   );
-}
+};
+
+export default Verified;
