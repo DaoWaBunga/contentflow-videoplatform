@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Heart, MessageCircle, Share2, ChevronDown, ChevronUp } from "lucide-react";
+import { Heart, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
@@ -62,7 +62,6 @@ export const VideoCard = ({
     thumbnail.includes("storage.googleapis.com");
 
   useEffect(() => {
-    // Check if user has already liked this video
     const checkIfLiked = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -81,7 +80,6 @@ export const VideoCard = ({
     checkIfLiked();
   }, [id]);
 
-  // Fetch comments when comment section is opened
   useEffect(() => {
     if (showCommentInput && commentsData.length === 0) {
       fetchComments();
@@ -114,7 +112,6 @@ export const VideoCard = ({
     }
   };
 
-  // Extract video ID from YouTube URL
   const getYoutubeEmbedUrl = (url: string) => {
     let videoId = "";
     
@@ -137,7 +134,6 @@ export const VideoCard = ({
     try {
       setIsSubmitting(true);
       
-      // Check if user is logged in
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -149,7 +145,6 @@ export const VideoCard = ({
         return;
       }
       
-      // Check if already liked
       const { data: existingLike } = await supabase
         .from('likes')
         .select()
@@ -166,7 +161,6 @@ export const VideoCard = ({
         return;
       }
       
-      // Add like
       const { error } = await supabase
         .from('likes')
         .insert({
@@ -176,7 +170,6 @@ export const VideoCard = ({
       
       if (error) throw error;
       
-      // Update UI
       setIsLiked(true);
       setLikeCount(prev => prev + 1);
       
@@ -207,7 +200,6 @@ export const VideoCard = ({
     try {
       setIsSubmitting(true);
       
-      // Check if user is logged in
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -219,7 +211,6 @@ export const VideoCard = ({
         return;
       }
       
-      // Add comment
       const { error } = await supabase
         .from('comments')
         .insert({
@@ -230,11 +221,9 @@ export const VideoCard = ({
       
       if (error) throw error;
       
-      // Update UI
       setCommentCount(prev => prev + 1);
       setCommentText("");
       
-      // Refetch comments to show the new one
       fetchComments();
       
       toast({
@@ -289,7 +278,6 @@ export const VideoCard = ({
         </div>
       );
     } else {
-      // Fallback for other types of content or invalid URLs
       return (
         <div 
           className="aspect-video w-full rounded-md overflow-hidden bg-muted flex items-center justify-center cursor-pointer"
@@ -301,7 +289,6 @@ export const VideoCard = ({
     }
   };
 
-  // Determine how many comments to display
   const visibleComments = showAllComments ? commentsData : commentsData.slice(0, 2);
   const hasMoreComments = commentsData.length > 2;
 
@@ -340,10 +327,6 @@ export const VideoCard = ({
               <span>{commentCount}</span>
             </button>
           </div>
-          <button className="flex items-center space-x-1">
-            <Share2 className="h-5 w-5" />
-            <span>Share</span>
-          </button>
         </CardFooter>
         
         {showCommentInput && (
