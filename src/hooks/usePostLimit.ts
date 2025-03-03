@@ -10,7 +10,18 @@ export const usePostLimit = () => {
     const checkPostLimit = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase.rpc('check_daily_post_limit');
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setCanPost(false);
+          setLoading(false);
+          return;
+        }
+        
+        // Call the database function with the user's ID
+        const { data, error } = await supabase.rpc('check_daily_post_limit', {
+          user_id: user.id
+        });
         
         if (error) {
           console.error("Error checking post limit:", error);

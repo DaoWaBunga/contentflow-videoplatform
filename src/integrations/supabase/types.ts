@@ -325,11 +325,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_daily_post_limit: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
       create_store_purchase: {
         Args: {
           p_user_id: string
           p_item_id: string
           p_price: number
+        }
+        Returns: undefined
+      }
+      handle_stripe_webhook: {
+        Args: {
+          payment_intent_id: string
+          customer_id: string
+          user_id: string
+          success: boolean
         }
         Returns: undefined
       }
