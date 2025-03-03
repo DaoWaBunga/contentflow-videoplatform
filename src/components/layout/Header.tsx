@@ -94,11 +94,10 @@ export function Header() {
           return acc;
         }, {} as Record<string, string>);
 
-        // Get likes on user's videos
+        // Get likes on user's videos - using proper column selection
         const { data: likes, error: likesError } = await supabase
           .from('likes')
           .select(`
-            id,
             created_at,
             video_id,
             profiles:user_id (username)
@@ -128,10 +127,10 @@ export function Header() {
 
         // Combine and format notifications
         const formattedLikes = (likes || []).map(like => ({
-          id: like.id,
+          id: `like_${like.video_id}_${like.profiles?.username}_${new Date(like.created_at).getTime()}`,
           type: 'like' as const,
           video_title: videoTitlesMap[like.video_id] || 'Unknown video',
-          user_name: like.profiles.username,
+          user_name: like.profiles?.username || 'Unknown user',
           created_at: like.created_at,
           is_read: false // We would track this in a separate table in a real app
         }));
@@ -140,7 +139,7 @@ export function Header() {
           id: comment.id,
           type: 'comment' as const,
           video_title: videoTitlesMap[comment.video_id] || 'Unknown video',
-          user_name: comment.profiles.username,
+          user_name: comment.profiles?.username || 'Unknown user',
           created_at: comment.created_at,
           is_read: false // We would track this in a separate table in a real app
         }));
