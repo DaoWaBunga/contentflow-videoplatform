@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -11,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Profile {
   username: string;
@@ -28,6 +28,19 @@ interface Video {
   category: string | null;
 }
 
+const CATEGORIES = [
+  "Uncategorized",
+  "Tutorial",
+  "Entertainment",
+  "Music",
+  "Gaming",
+  "Travel",
+  "Cooking",
+  "Education",
+  "Technology",
+  "Other"
+];
+
 const Profile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -36,6 +49,7 @@ const Profile = () => {
   const [isEditVideoOpen, setIsEditVideoOpen] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [editedTitle, setEditedTitle] = useState("");
+  const [editedCategory, setEditedCategory] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -123,6 +137,7 @@ const Profile = () => {
   const handleEditVideo = (video: Video) => {
     setCurrentVideo(video);
     setEditedTitle(video.title);
+    setEditedCategory(video.category || "Uncategorized");
     setIsEditVideoOpen(true);
   };
 
@@ -131,22 +146,24 @@ const Profile = () => {
 
     const { error } = await supabase
       .from('videos')
-      .update({ title: editedTitle.trim() })
+      .update({ 
+        title: editedTitle.trim(),
+        category: editedCategory 
+      })
       .eq('id', currentVideo.id);
 
     if (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update video title",
+        description: "Failed to update video information",
       });
       return;
     }
 
-    // Update local state
     setVideos(videos.map(video => 
       video.id === currentVideo.id 
-        ? { ...video, title: editedTitle.trim() } 
+        ? { ...video, title: editedTitle.trim(), category: editedCategory } 
         : video
     ));
     
@@ -155,7 +172,7 @@ const Profile = () => {
     
     toast({
       title: "Success",
-      description: "Video title updated successfully",
+      description: "Video information updated successfully",
     });
   };
 
@@ -174,7 +191,6 @@ const Profile = () => {
       return;
     }
 
-    // Update local state
     setVideos(videos.filter(video => video.id !== videoId));
     
     toast({
@@ -342,13 +358,12 @@ const Profile = () => {
         </div>
       </main>
       
-      {/* Edit Video Dialog */}
       <Dialog open={isEditVideoOpen} onOpenChange={setIsEditVideoOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Video</DialogTitle>
             <DialogDescription>
-              Update the title of your video
+              Update the title and category of your video
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -360,6 +375,25 @@ const Profile = () => {
                 onChange={(e) => setEditedTitle(e.target.value)}
                 placeholder="Enter video title"
               />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="videoCategory">Category</Label>
+              <Select 
+                value={editedCategory} 
+                onValueChange={setEditedCategory}
+              >
+                <SelectTrigger id="videoCategory" className="w-full">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

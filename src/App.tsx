@@ -53,6 +53,7 @@ const App = () => {
                 </AuthGuard>
               }
             />
+            <Route path="/video/:id" element={<Index />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

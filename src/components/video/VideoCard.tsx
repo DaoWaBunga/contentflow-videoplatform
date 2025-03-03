@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Heart, MessageCircle, Share2, ChevronDown, ChevronUp } from "lucide-react";
@@ -8,6 +7,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { VideoModal } from "./VideoModal";
 
 interface Comment {
   id: string;
@@ -48,6 +48,7 @@ export const VideoCard = ({
   const [commentsData, setCommentsData] = useState<Comment[]>([]);
   const [showAllComments, setShowAllComments] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const isYoutubeVideo = 
     thumbnail.includes("youtube.com") || 
@@ -127,7 +128,7 @@ export const VideoCard = ({
   };
 
   const handleThumbnailClick = () => {
-    navigate(`/video/${id}`);
+    setIsModalOpen(true);
   };
 
   const handleLikeClick = async () => {
@@ -261,7 +262,10 @@ export const VideoCard = ({
     if (isYoutubeVideo) {
       const embedUrl = getYoutubeEmbedUrl(thumbnail);
       return (
-        <div className="aspect-video w-full rounded-md overflow-hidden bg-muted">
+        <div 
+          className="aspect-video w-full rounded-md overflow-hidden bg-muted cursor-pointer"
+          onClick={handleThumbnailClick}
+        >
           <iframe 
             src={embedUrl} 
             className="w-full h-full"
@@ -302,112 +306,122 @@ export const VideoCard = ({
   const hasMoreComments = commentsData.length > 2;
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="p-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-semibold text-lg line-clamp-2">{title}</h3>
-            <p className="text-sm text-muted-foreground">by {author}</p>
-          </div>
-          <Badge variant="outline" className="ml-2">
-            {category}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {renderThumbnail()}
-      </CardContent>
-      <CardFooter className="p-4 flex justify-between">
-        <div className="flex space-x-4">
-          <button 
-            className={`flex items-center space-x-1 ${isLiked ? 'text-red-500' : ''}`}
-            onClick={handleLikeClick}
-            disabled={isSubmitting || isLiked}
-          >
-            <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
-            <span>{likeCount}</span>
-          </button>
-          <button 
-            className="flex items-center space-x-1"
-            onClick={handleCommentClick}
-          >
-            <MessageCircle className="h-5 w-5" />
-            <span>{commentCount}</span>
-          </button>
-        </div>
-        <button className="flex items-center space-x-1">
-          <Share2 className="h-5 w-5" />
-          <span>Share</span>
-        </button>
-      </CardFooter>
-      
-      {showCommentInput && (
-        <div className="px-4 pb-4 border-t border-border">
-          {isLoadingComments ? (
-            <div className="py-3 text-center text-sm text-muted-foreground">
-              Loading comments...
+    <>
+      <Card className="overflow-hidden">
+        <CardHeader className="p-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-semibold text-lg line-clamp-2">{title}</h3>
+              <p className="text-sm text-muted-foreground">by {author}</p>
             </div>
-          ) : (
-            <>
-              {commentsData.length > 0 ? (
-                <div className="mb-3">
-                  <div className="flex justify-between items-center my-2">
-                    <h4 className="text-sm font-medium">Comments ({commentCount})</h4>
-                    {hasMoreComments && (
-                      <button 
-                        onClick={() => setShowAllComments(!showAllComments)}
-                        className="text-xs text-primary flex items-center"
-                      >
-                        {showAllComments ? (
-                          <>Show less <ChevronUp className="h-3 w-3 ml-1" /></>
-                        ) : (
-                          <>View more comments <ChevronDown className="h-3 w-3 ml-1" /></>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                  
-                  <ScrollArea className={`${showAllComments ? 'max-h-[200px]' : ''} pr-2`}>
-                    <div className="space-y-3">
-                      {visibleComments.map((comment) => (
-                        <div key={comment.id} className="bg-card/50 p-2 rounded-md">
-                          <div className="flex justify-between">
-                            <p className="text-xs font-medium">{comment.profiles.username}</p>
-                            <span className="text-[10px] text-muted-foreground">{formatDate(comment.created_at)}</span>
-                          </div>
-                          <p className="text-sm mt-1">{comment.content}</p>
-                        </div>
-                      ))}
+            <Badge variant="outline" className="ml-2">
+              {category}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {renderThumbnail()}
+        </CardContent>
+        <CardFooter className="p-4 flex justify-between">
+          <div className="flex space-x-4">
+            <button 
+              className={`flex items-center space-x-1 ${isLiked ? 'text-red-500' : ''}`}
+              onClick={handleLikeClick}
+              disabled={isSubmitting || isLiked}
+            >
+              <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+              <span>{likeCount}</span>
+            </button>
+            <button 
+              className="flex items-center space-x-1"
+              onClick={handleCommentClick}
+            >
+              <MessageCircle className="h-5 w-5" />
+              <span>{commentCount}</span>
+            </button>
+          </div>
+          <button className="flex items-center space-x-1">
+            <Share2 className="h-5 w-5" />
+            <span>Share</span>
+          </button>
+        </CardFooter>
+        
+        {showCommentInput && (
+          <div className="px-4 pb-4 border-t border-border">
+            {isLoadingComments ? (
+              <div className="py-3 text-center text-sm text-muted-foreground">
+                Loading comments...
+              </div>
+            ) : (
+              <>
+                {commentsData.length > 0 ? (
+                  <div className="mb-3">
+                    <div className="flex justify-between items-center my-2">
+                      <h4 className="text-sm font-medium">Comments ({commentCount})</h4>
+                      {hasMoreComments && (
+                        <button 
+                          onClick={() => setShowAllComments(!showAllComments)}
+                          className="text-xs text-primary flex items-center"
+                        >
+                          {showAllComments ? (
+                            <>Show less <ChevronUp className="h-3 w-3 ml-1" /></>
+                          ) : (
+                            <>View more comments <ChevronDown className="h-3 w-3 ml-1" /></>
+                          )}
+                        </button>
+                      )}
                     </div>
-                  </ScrollArea>
-                </div>
-              ) : (
-                <div className="py-2 text-center text-sm text-muted-foreground">
-                  No comments yet. Be the first to comment!
-                </div>
-              )}
-              
-              <form onSubmit={handleCommentSubmit} className="flex space-x-2 mt-2">
-                <Input
-                  type="text"
-                  className="flex-1 min-h-9 focus:min-h-12 transition-all"
-                  placeholder="Add a comment..."
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  disabled={isSubmitting}
-                />
-                <button
-                  type="submit"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-2 rounded-md text-sm font-medium"
-                  disabled={isSubmitting || !commentText.trim()}
-                >
-                  Post
-                </button>
-              </form>
-            </>
-          )}
-        </div>
-      )}
-    </Card>
+                    
+                    <ScrollArea className={`${showAllComments ? 'max-h-[200px]' : ''} pr-2`}>
+                      <div className="space-y-3">
+                        {visibleComments.map((comment) => (
+                          <div key={comment.id} className="bg-card/50 p-2 rounded-md">
+                            <div className="flex justify-between">
+                              <p className="text-xs font-medium">{comment.profiles.username}</p>
+                              <span className="text-[10px] text-muted-foreground">{formatDate(comment.created_at)}</span>
+                            </div>
+                            <p className="text-sm mt-1">{comment.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                ) : (
+                  <div className="py-2 text-center text-sm text-muted-foreground">
+                    No comments yet. Be the first to comment!
+                  </div>
+                )}
+                
+                <form onSubmit={handleCommentSubmit} className="flex space-x-2 mt-2">
+                  <Input
+                    type="text"
+                    className="flex-1 min-h-9 focus:min-h-12 transition-all"
+                    placeholder="Add a comment..."
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                  <button
+                    type="submit"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-2 rounded-md text-sm font-medium"
+                    disabled={isSubmitting || !commentText.trim()}
+                  >
+                    Post
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        )}
+      </Card>
+
+      <VideoModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        videoSrc={thumbnail}
+        title={title}
+        isYoutubeVideo={isYoutubeVideo}
+      />
+    </>
   );
 };
