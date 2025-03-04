@@ -56,7 +56,18 @@ export const ProfileImageUpload = ({
         return;
       }
 
-      // Upload directly to Supabase Storage instead of using edge function
+      // Create profile_images bucket if it doesn't exist
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const profileBucketExists = buckets?.some(bucket => bucket.name === 'profile_images');
+      
+      if (!profileBucketExists) {
+        // Try to create the bucket
+        await supabase.storage.createBucket('profile_images', {
+          public: true,
+          fileSizeLimit: 5 * 1024 * 1024, // 5MB
+        });
+      }
+
       // Create a unique filename
       const fileExt = file.name.split('.').pop();
       const fileName = `${sessionData.session.user.id}_${Date.now()}.${fileExt}`;
@@ -99,7 +110,7 @@ export const ProfileImageUpload = ({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to upload profile image. Please check if the 'profile_images' bucket exists in Supabase storage.",
+        description: "Failed to upload profile image. Please check your Supabase storage configuration.",
       });
     } finally {
       setUploading(false);

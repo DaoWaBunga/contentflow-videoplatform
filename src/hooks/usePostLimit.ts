@@ -25,7 +25,7 @@ export const usePostLimit = () => {
           .select('active')
           .eq('user_id', user.id)
           .eq('item_id', 'premium_subscription')
-          .single();
+          .maybeSingle();
         
         // If user has active premium, they can always post
         if (premiumData?.active) {
@@ -37,15 +37,16 @@ export const usePostLimit = () => {
         
         // Count today's posts
         const today = new Date();
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+        today.setHours(0, 0, 0, 0); // Start of day
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1); // Start of next day
         
-        const { data: postsData, error: postsError } = await supabase
+        const { data: postsData, error: postsError, count } = await supabase
           .from('videos')
-          .select('id', { count: 'exact' })
+          .select('*', { count: 'exact' })
           .eq('user_id', user.id)
-          .gte('created_at', startOfDay)
-          .lt('created_at', endOfDay);
+          .gte('created_at', today.toISOString())
+          .lt('created_at', tomorrow.toISOString());
         
         if (postsError) {
           console.error("Error checking post count:", postsError);
@@ -53,7 +54,7 @@ export const usePostLimit = () => {
           return;
         }
         
-        const postCount = postsData?.length || 0;
+        const postCount = count || 0;
         const maxPosts = 5; // Free user daily post limit
         
         setCanPost(postCount < maxPosts);

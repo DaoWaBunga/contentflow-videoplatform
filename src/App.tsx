@@ -13,11 +13,17 @@ import Wallet from "./pages/Wallet";
 import Profile from "./pages/Profile";
 import Verified from "./pages/Verified";
 import NotFound from "./pages/NotFound";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const App = () => {
-  // Create a client
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: 1,
+        refetchOnWindowFocus: false,
+      },
+    },
+  }));
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -53,6 +59,7 @@ const App = () => {
                 </AuthGuard>
               }
             />
+            <Route path="/verified" element={<Verified />} />
             <Route path="/video/:id" element={<Index />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -11,8 +11,13 @@ type PostLimitMessageProps = {
 export const PostLimitMessage = ({ remainingPosts }: PostLimitMessageProps) => {
   const navigate = useNavigate();
 
+  // If remainingPosts is null, user has premium (unlimited posts)
+  if (remainingPosts === null) {
+    return null;
+  }
+
   return (
-    <Alert variant="destructive" className="mb-6">
+    <Alert variant={remainingPosts === 0 ? "destructive" : "default"} className="mb-6">
       <AlertCircle className="h-4 w-4" />
       <AlertTitle>Daily Post Limit</AlertTitle>
       <AlertDescription className="mt-2">
@@ -20,7 +25,7 @@ export const PostLimitMessage = ({ remainingPosts }: PostLimitMessageProps) => {
           {remainingPosts === 0 ? (
             "You've reached your limit of 5 posts per day. Upgrade to Premium for unlimited posts."
           ) : (
-            `You have ${remainingPosts} posts remaining today. Free accounts are limited to 5 posts per day.`
+            `You have ${remainingPosts} post${remainingPosts !== 1 ? 's' : ''} remaining today. Free accounts are limited to 5 posts per day.`
           )}
         </p>
         <Button 
