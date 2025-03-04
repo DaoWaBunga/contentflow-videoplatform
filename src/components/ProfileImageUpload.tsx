@@ -56,23 +56,39 @@ export const ProfileImageUpload = ({
         return;
       }
 
-      // Create form data
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Upload the file using our edge function
-      const { data, error } = await supabase.functions.invoke('upload-profile-image', {
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
-        body: formData,
-      });
-
-      if (error) {
-        throw error;
+      // Upload directly to Supabase Storage instead of using edge function
+      // Create a unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${sessionData.session.user.id}_${Date.now()}.${fileExt}`;
+      
+      // Upload to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('profile_images')
+        .upload(fileName, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+      
+      if (uploadError) {
+        throw uploadError;
+      }
+      
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile_images')
+        .getPublicUrl(fileName);
+      
+      // Update the user's profile with the new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', sessionData.session.user.id);
+      
+      if (updateError) {
+        throw updateError;
       }
 
-      onImageUploaded(data.avatarUrl);
+      onImageUploaded(publicUrl);
       
       toast({
         title: "Success",
@@ -83,7 +99,7 @@ export const ProfileImageUpload = ({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to upload profile image",
+        description: "Failed to upload profile image. Please check if the 'profile_images' bucket exists in Supabase storage.",
       });
     } finally {
       setUploading(false);
