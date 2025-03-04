@@ -44,11 +44,28 @@ export default {
           DEFAULT: "#1A1F2C",
           foreground: "#ffffff",
         },
+        // Neubrutalism specific colors
+        neo: {
+          bg: "#141420", 
+          card: "#1F1F2C",
+          accent: "#9b87f5",
+          border: "#403E43",
+          text: "#FFFFFF",
+          muted: "#A1A1AA",
+        }
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        // Neubrutalism typically uses sharp corners
+        neo: "4px",
+      },
+      boxShadow: {
+        // Neubrutalism characteristic shadows
+        'neo': '4px 4px 0 0 #403E43',
+        'neo-lg': '6px 6px 0 0 #403E43',
+        'neo-xl': '8px 8px 0 0 #403E43',
       },
       keyframes: {
         "accordion-down": {

@@ -116,14 +116,14 @@ export const VideoGallery = ({ videos, username, onVideosUpdate }: VideoGalleryP
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">My Videos</h2>
-        <button className="p-2 hover:bg-muted rounded-lg transition-colors">
+        <h2 className="text-lg font-bold text-neo-text">My Videos</h2>
+        <button className="p-2 hover:bg-neo-card rounded-neo transition-colors">
           <Grid3X3 className="h-5 w-5" />
         </button>
       </div>
 
       {videos.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
+        <div className="text-center py-8 text-neo-muted bg-neo-card border-2 border-neo-border rounded-neo shadow-neo">
           You haven't uploaded any videos yet.
         </div>
       ) : (
@@ -143,29 +143,29 @@ export const VideoGallery = ({ videos, username, onVideosUpdate }: VideoGalleryP
               <div className="mt-2 flex justify-end gap-2">
                 <button 
                   onClick={() => handleEditVideo(video)}
-                  className="p-2 rounded-md bg-black/50 text-white hover:bg-black/70 transition-colors"
+                  className="p-2 rounded-neo bg-neo-card border-2 border-neo-border text-neo-text hover:bg-neo-accent hover:text-white transition-colors shadow-neo hover:translate-y-[-2px] hover:shadow-neo-lg"
                 >
                   <Edit className="h-4 w-4" />
                 </button>
                 
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <button className="p-2 rounded-md bg-red-500/50 text-white hover:bg-red-500/70 transition-colors">
+                    <button className="p-2 rounded-neo bg-red-500/80 border-2 border-neo-border text-white hover:bg-red-500 transition-colors shadow-neo hover:translate-y-[-2px] hover:shadow-neo-lg">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent className="bg-neo-card border-2 border-neo-border shadow-neo-lg">
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Video</AlertDialogTitle>
-                      <AlertDialogDescription>
+                      <AlertDialogTitle className="text-neo-text">Delete Video</AlertDialogTitle>
+                      <AlertDialogDescription className="text-neo-muted">
                         Are you sure you want to delete this video? This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel className="bg-neo-bg text-neo-text border-2 border-neo-border hover:bg-neo-card">Cancel</AlertDialogCancel>
                       <AlertDialogAction 
                         onClick={() => handleDeleteVideo(video.id)}
-                        className="bg-red-500 hover:bg-red-600"
+                        className="bg-red-500 text-white border-2 border-neo-border hover:bg-red-600 shadow-neo"
                       >
                         Delete
                       </AlertDialogAction>
@@ -179,36 +179,37 @@ export const VideoGallery = ({ videos, username, onVideosUpdate }: VideoGalleryP
       )}
 
       <Dialog open={isEditVideoOpen} onOpenChange={setIsEditVideoOpen}>
-        <DialogContent>
+        <DialogContent className="bg-neo-card border-2 border-neo-border shadow-neo-lg">
           <DialogHeader>
-            <DialogTitle>Edit Video</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-neo-text">Edit Video</DialogTitle>
+            <DialogDescription className="text-neo-muted">
               Update the title and category of your video
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="videoTitle">Title</Label>
+              <Label htmlFor="videoTitle" className="text-neo-text">Title</Label>
               <Input
                 id="videoTitle"
                 value={editedTitle}
                 onChange={(e) => setEditedTitle(e.target.value)}
                 placeholder="Enter video title"
+                className="neo-input text-neo-text"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="videoCategory">Category</Label>
+              <Label htmlFor="videoCategory" className="text-neo-text">Category</Label>
               <Select 
                 value={editedCategory} 
                 onValueChange={setEditedCategory}
               >
-                <SelectTrigger id="videoCategory" className="w-full">
+                <SelectTrigger id="videoCategory" className="w-full neo-input text-neo-text">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-neo-card border-2 border-neo-border">
                   {CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
+                    <SelectItem key={category} value={category} className="focus:bg-neo-accent focus:text-white">
                       {category}
                     </SelectItem>
                   ))}
@@ -217,10 +218,12 @@ export const VideoGallery = ({ videos, username, onVideosUpdate }: VideoGalleryP
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditVideoOpen(false)}>
+            <Button variant="outline" onClick={() => setIsEditVideoOpen(false)} className="bg-neo-bg text-neo-text border-2 border-neo-border hover:bg-neo-card">
               Cancel
             </Button>
-            <Button onClick={handleUpdateVideo}>Save Changes</Button>
+            <Button onClick={handleUpdateVideo} className="bg-neo-accent text-white border-2 border-neo-border hover:bg-neo-accent/80 shadow-neo">
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
