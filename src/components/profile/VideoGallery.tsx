@@ -130,17 +130,27 @@ export const VideoGallery = ({ videos, username, onVideosUpdate }: VideoGalleryP
         <div className="space-y-6">
           {videos.map((video) => (
             <div key={video.id} className="relative">
-              <div className="absolute top-2 right-2 z-10 flex gap-2">
+              <VideoCard
+                id={video.id}
+                title={video.title}
+                author={username}
+                thumbnail={video.thumbnail_url || video.url}
+                likes={video.likes_count || 0}
+                comments={video.comments_count || 0}
+                category={video.category || undefined}
+              />
+              
+              <div className="mt-2 flex justify-end gap-2">
                 <button 
                   onClick={() => handleEditVideo(video)}
-                  className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                  className="p-2 rounded-md bg-black/50 text-white hover:bg-black/70 transition-colors"
                 >
                   <Edit className="h-4 w-4" />
                 </button>
                 
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <button className="p-2 rounded-full bg-red-500/50 text-white hover:bg-red-500/70 transition-colors">
+                    <button className="p-2 rounded-md bg-red-500/50 text-white hover:bg-red-500/70 transition-colors">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </AlertDialogTrigger>
@@ -163,16 +173,6 @@ export const VideoGallery = ({ videos, username, onVideosUpdate }: VideoGalleryP
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
-              
-              <VideoCard
-                id={video.id}
-                title={video.title}
-                author={username}
-                thumbnail={video.thumbnail_url || video.url}
-                likes={video.likes_count || 0}
-                comments={video.comments_count || 0}
-                category={video.category || undefined}
-              />
             </div>
           ))}
         </div>
