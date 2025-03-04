@@ -25,18 +25,15 @@ import { CATEGORIES } from "./Discover";
 import { usePostLimit } from "@/hooks/usePostLimit";
 import { PostLimitMessage } from "@/components/PostLimitMessage";
 
-// File size limits in bytes
 const IMAGE_SIZE_LIMIT = 5 * 1024 * 1024; // 5MB
 const VIDEO_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB
 
 const Upload = () => {
-  // URL upload states
   const [embedUrl, setEmbedUrl] = useState("");
   const [title, setTitle] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [category, setCategory] = useState("");
   
-  // File upload states
   const [file, setFile] = useState<File | null>(null);
   const [fileTitle, setFileTitle] = useState("");
   const [fileCategory, setFileCategory] = useState("");
@@ -45,31 +42,26 @@ const Upload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   
-  // Post limit check
-  const { canPost, loading: loadingPostLimit } = usePostLimit();
+  const { canPost, loading: loadingPostLimit, remainingPosts } = usePostLimit();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Validate file type and size
   const validateFile = (file: File): boolean => {
     setValidationError(null);
 
-    // Check file type
     const imageTypes = ['image/jpeg', 'image/png', 'image/gif'];
     const videoTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
     
     if (imageTypes.includes(file.type)) {
       setFileType("image");
-      // Check image size
       if (file.size > IMAGE_SIZE_LIMIT) {
         setValidationError(`Image size exceeds 5MB limit (${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
         return false;
       }
     } else if (videoTypes.includes(file.type)) {
       setFileType("video");
-      // Check video size
       if (file.size > VIDEO_SIZE_LIMIT) {
         setValidationError(`Video size exceeds 50MB limit (${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
         return false;
@@ -82,25 +74,21 @@ const Upload = () => {
     return true;
   };
 
-  // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
     
     if (validateFile(selectedFile)) {
       setFile(selectedFile);
-      // Use the file name (without extension) as the default title
       const fileName = selectedFile.name.split('.').slice(0, -1).join('.');
       setFileTitle(fileName);
     } else {
-      // Reset file input if validation fails
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   };
 
-  // Category management functions
   const toggleUrlCategory = (selectedCategory: string) => {
     setCategory(prev => prev === selectedCategory ? "" : selectedCategory);
   };
@@ -117,7 +105,6 @@ const Upload = () => {
     setFileCategory("");
   };
 
-  // Handle URL submission
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -150,7 +137,6 @@ const Upload = () => {
     }
 
     try {
-      // Insert into database
       const { data: mediaData, error: mediaError } = await supabase
         .from('videos')
         .insert({
@@ -165,7 +151,6 @@ const Upload = () => {
 
       if (mediaError) throw mediaError;
 
-      // Reward tokens for the upload - already updated in the SQL
       const { error: rewardError } = await supabase.rpc('reward_upload_tokens', {
         user_id: user.id,
         is_video: embedUrl.includes('youtube.com') || embedUrl.includes('youtu.be')
@@ -178,7 +163,6 @@ const Upload = () => {
         description: "Your content has been uploaded and you've earned tokens!",
       });
 
-      // Reset form and redirect to profile
       setEmbedUrl("");
       setThumbnailUrl("");
       setTitle("");
@@ -193,7 +177,6 @@ const Upload = () => {
     }
   };
 
-  // Handle file upload
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -229,12 +212,10 @@ const Upload = () => {
       setIsUploading(true);
       setUploadProgress(0);
 
-      // Create a filename that's unique
       const fileExt = file.name.split('.').pop();
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
       
-      // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(fileType === "image" ? "images" : "videos")
         .upload(filePath, file, {
@@ -244,14 +225,12 @@ const Upload = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get the public URL for the uploaded file
       const { data: publicUrlData } = supabase.storage
         .from(fileType === "image" ? "images" : "videos")
         .getPublicUrl(filePath);
 
       const publicUrl = publicUrlData.publicUrl;
       
-      // Insert into the videos table
       const { data: mediaData, error: mediaError } = await supabase
         .from('videos')
         .insert({
@@ -265,7 +244,6 @@ const Upload = () => {
 
       if (mediaError) throw mediaError;
 
-      // Reward tokens for the upload
       const { error: rewardError } = await supabase.rpc('reward_upload_tokens', {
         user_id: user.id,
         is_video: fileType === "video"
@@ -278,7 +256,6 @@ const Upload = () => {
         description: "Your file has been uploaded and you've earned tokens!",
       });
 
-      // Reset form and redirect to profile
       setFile(null);
       setFileTitle("");
       setFileType(null);
@@ -325,7 +302,7 @@ const Upload = () => {
             </div>
           ) : (
             <>
-              {canPost === false && <PostLimitMessage />}
+              {remainingPosts !== null && <PostLimitMessage remainingPosts={remainingPosts} />}
               
               <Tabs defaultValue="url" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
