@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthGuard } from "@/components/AuthGuard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Discover from "./pages/Discover";
 import Upload from "./pages/Upload";
 import Wallet from "./pages/Wallet";
 import Profile from "./pages/Profile";
@@ -34,7 +33,6 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/discover" element={<Discover />} />
             <Route
               path="/upload"
               element={

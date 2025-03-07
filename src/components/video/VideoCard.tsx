@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Heart, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
@@ -330,7 +331,7 @@ export const VideoCard = ({
         </CardFooter>
         
         {showCommentInput && (
-          <div className="px-4 pb-4 border-t border-border">
+          <div className="px-4 pb-4 border-t border-border max-h-60 overflow-y-auto">
             {isLoadingComments ? (
               <div className="py-3 text-center text-sm text-muted-foreground">
                 Loading comments...
@@ -355,7 +356,7 @@ export const VideoCard = ({
                       )}
                     </div>
                     
-                    <ScrollArea className={`${showAllComments ? 'max-h-[200px]' : ''} pr-2`}>
+                    <ScrollArea className="max-h-24 pr-2">
                       <div className="space-y-3">
                         {visibleComments.map((comment) => (
                           <div key={comment.id} className="bg-card/50 p-2 rounded-md">
@@ -378,7 +379,7 @@ export const VideoCard = ({
                 <form onSubmit={handleCommentSubmit} className="flex space-x-2 mt-2">
                   <Input
                     type="text"
-                    className="flex-1 min-h-9 focus:min-h-12 transition-all"
+                    className="flex-1 min-h-9 transition-all"
                     placeholder="Add a comment..."
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
